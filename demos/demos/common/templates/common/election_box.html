@@ -1,0 +1,26 @@
+{% load i18n %}
+{% load custom %}
+
+<div class="election-box">
+	<div class="header">
+		<h3>{{ object.title }}</h3>
+		<span>
+			{% if not time %} {% now as time %} {% endif %}
+			<span class="glyphicon glyphicon-time" aria-hidden="true"></span>
+			{% if time < object.start_datetime %}
+			<span data-t1="{{ time|date:'c' }}" data-t2="{{ object.start_datetime|date:'c' }}">{% blocktrans with timediff="%s" %}starts in {{ timediff }}{% endblocktrans %}</span>
+			{% elif time >= object.end_datetime %}
+			<span data-t1="{{ object.end_datetime|date:'c' }}" data-t2="{{ time|date:'c' }}">{% blocktrans with timediff="%s" %}ended {{ timediff }} ago{% endblocktrans %}</span>
+			{% else %}
+			<span data-t1="{{ time|date:'c' }}" data-t2="{{ object.end_datetime|date:'c' }}">{% blocktrans with timediff="%s" %}{{ timediff }} remaining{% endblocktrans %}</span>
+			{% endif %}
+		</span>
+	</div>
+	<div class="body clearfix">
+		{% with size=panels|length %}
+		{% for panel in panels %}
+			<div style="width:{{ 100|div:size|stringformat:'f' }}%;"><div><span>{{ panel.0 }}</span><br><span {% if panel|length >= 3 %}id="{{ panel.2}}"{% endif %}>{{ panel.1|default:"-" }}</span></div></div>
+		{% endfor %}
+		{% endwith %}
+	</div>
+</div>
