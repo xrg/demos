@@ -263,8 +263,8 @@ if len(DEMOS_APPS) == 1:
 else:
     DEMOS_URL = { 'ea': 'ea', 'bds': 'bds', 'abb': 'abb', 'vbb': 'vbb', }
 
-INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
-LOCALE_PATHS += [ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS]
+INSTALLED_APPS += tuple([ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ])
+LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
 
 # End of demos-specific configuration
 
