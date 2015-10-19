@@ -109,9 +109,9 @@ class CreateView(View):
 				
 				question_obj = {
 					'index': index,
-					'text': question_form.cleaned_data['question'],
-					'columns': question_form.cleaned_data['columns'],
-					'choices': int(question_form.cleaned_data['choices']),
+					'text': cleaned_data['question'],
+					'columns': cleaned_data['columns'],
+					'choices': int(cleaned_data['choices']),
 					'__list_OptionC__': [],
 				}
 				
