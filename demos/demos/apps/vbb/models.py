@@ -30,13 +30,15 @@ class Election(models.Model):
 	
 	id = fields.Base32Field(primary_key=True)
 	
-	title = models.CharField(max_length=config.TEXT_LEN)
-	ballots = models.PositiveIntegerField()
+	title = models.CharField(max_length=config.TITLE_MAXLEN)
 	
 	start_datetime = models.DateTimeField()
 	end_datetime = models.DateTimeField()
 	
+	long_votecodes = models.BooleanField()
 	state = fields.IntEnumField(cls=enums.State)
+	
+	ballots = models.PositiveIntegerField()
 	
 	# Other model methods and meta options
 	
@@ -50,8 +52,8 @@ class Election(models.Model):
 		ordering = ['id']
 	
 	class ElectionManager(models.Manager):
-		def get_by_natural_key(self, id):
-			return self.get(id=id)
+		def get_by_natural_key(self, e_id):
+			return self.get(id=e_id)
 	
 	objects = ElectionManager()
 	
@@ -64,7 +66,9 @@ class Ballot(models.Model):
 	election = models.ForeignKey(Election)
 	
 	serial = models.PositiveIntegerField()
-	credential_hash = models.CharField(max_length=128)
+	credential_hash = models.CharField(max_length=config.HASH_LEN)
+	
+	used = models.BooleanField(default=False)
 	
 	# Other model methods and meta options
 	
@@ -73,11 +77,11 @@ class Ballot(models.Model):
 	
 	class Meta:
 		ordering = ['election', 'serial']
-		unique_together = ('election', 'serial')
+		unique_together = ['election', 'serial']
 	
 	class BallotManager(models.Manager):
-		def get_by_natural_key(self, serial, id):
-			return self.get(serial=serial, election__id=id)
+		def get_by_natural_key(self, b_serial, e_id):
+			return self.get(serial=b_serial, election__id=e_id)
 	
 	objects = BallotManager()
 	
@@ -90,10 +94,7 @@ class Part(models.Model):
 	ballot = models.ForeignKey(Ballot)
 	
 	tag = models.CharField(max_length=1, choices=(('A', 'A'), ('B', 'B')))
-	
-	security_code_hash = models.CharField(max_length=128)
-	security_code = models.CharField(max_length=config.SECURITY_CODE_LEN,
-		blank=True, default='')
+	security_code_hash2 = models.CharField(max_length=config.HASH_LEN)
 	
 	# Other model methods and meta options
 	
@@ -102,12 +103,12 @@ class Part(models.Model):
 	
 	class Meta:
 		ordering = ['ballot', 'tag']
-		unique_together = ('ballot', 'tag')
+		unique_together = ['ballot', 'tag']
 	
 	class PartManager(models.Manager):
-		def get_by_natural_key(self, tag, serial, id):
-			return self.get(tag=tag, ballot__serial=serial,
-				ballot__election__id=id)
+		def get_by_natural_key(self, p_tag, b_serial, e_id):
+			return self.get(tag=p_tag, ballot__serial=b_serial,
+				ballot__election__id=e_id)
 	
 	objects = PartManager()
 	
@@ -120,11 +121,11 @@ class Question(models.Model):
 	election = models.ForeignKey(Election)
 	m2m_parts = models.ManyToManyField(Part)
 	
-	text = models.CharField(max_length=config.TEXT_LEN)
-	index = models.PositiveSmallIntegerField()
-	
-	columns = models.PositiveSmallIntegerField()
+	text = models.CharField(max_length=config.QUESTION_MAXLEN)
 	choices = models.PositiveSmallIntegerField()
+	
+	index = models.PositiveSmallIntegerField()
+	columns = models.BooleanField(default=False)
 	
 	# Other model methods and meta options
 	
@@ -133,11 +134,11 @@ class Question(models.Model):
 	
 	class Meta:
 		ordering = ['election', 'index']
-		unique_together = ('election', 'index')
+		unique_together = ['election', 'index']
 	
 	class QuestionManager(models.Manager):
-		def get_by_natural_key(self, index, id):
-			return self.get(index=index, election__id=id)
+		def get_by_natural_key(self, q_index, e_id):
+			return self.get(index=q_index, election__id=e_id)
 	
 	objects = QuestionManager()
 	
@@ -150,10 +151,12 @@ class OptionV(models.Model):
 	part = models.ForeignKey(Part)
 	question = models.ForeignKey(Question)
 	
-	votecode = models.CharField(max_length=config.VOTECODE_LEN)
-	receipt = models.CharField(max_length=config.RECEIPT_LEN)
+	votecode = models.PositiveSmallIntegerField()
 	
-	voted = models.BooleanField(default=False)
+	long_votecode_hash = models.CharField(max_length=config.HASH_LEN,
+		blank=True, default='')
+	
+	receipt = models.CharField(max_length=config.RECEIPT_LEN)
 	index = models.PositiveSmallIntegerField()
 	
 	# Other model methods and meta options
@@ -163,18 +166,18 @@ class OptionV(models.Model):
 	
 	class Meta:
 		ordering = ['part', 'question', 'index']
-		unique_together = ('part', 'question', 'votecode')
+		unique_together = ['part', 'question', 'index']
 	
 	class OptionVManager(models.Manager):
-		def get_by_natural_key(self, votecode, index, tag, serial, id):
-			return self.get(votecode=votecode, part__ballot__serial=serial,
-				question__index=index, question__election__id=id,
-				part__tag=tag, part__ballot__election__id=id)
+		def get_by_natural_key(self, o_index, q_index, p_tag, b_serial, e_id):
+			return self.get(index=o_index, part__ballot__serial=b_serial,
+				question__index=q_index, question__election__id=e_id,
+				part__tag=p_tag, part__ballot__election__id=e_id)
 	
 	objects = OptionVManager()
 	
 	def natural_key(self):
-		return (self.votecode,) + \
+		return (self.index,) + \
 			self.question.natural_key()[:-1] + self.part.natural_key()
 
 
@@ -182,7 +185,7 @@ class OptionC(models.Model):
 	
 	question = models.ForeignKey(Question)
 	
-	text = models.CharField(max_length=config.TEXT_LEN)
+	text = models.CharField(max_length=config.OPTION_MAXLEN)
 	index = models.PositiveSmallIntegerField()
 	
 	# Other model methods and meta options
@@ -192,12 +195,12 @@ class OptionC(models.Model):
 	
 	class Meta:
 		ordering = ['question', 'index']
-		unique_together = ('question', 'text')
+		unique_together = ['question', 'text']
 	
 	class OptionCManager(models.Manager):
-		def get_by_natural_key(self, text, index, id):
-			return self.get(text=text, question__index=index,
-				question__election__id=id)
+		def get_by_natural_key(self, o_text, q_index, e_id):
+			return self.get(text=o_text, question__index=q_index,
+				question__election__id=e_id)
 	
 	objects = OptionCManager()
 	

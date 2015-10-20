@@ -30,12 +30,12 @@ class Election(models.Model):
 	
 	id = fields.Base32Field(primary_key=True)
 	
-	title = models.CharField(max_length=config.TEXT_LEN)
-	ballots = models.PositiveIntegerField()
+	title = models.CharField(max_length=config.TITLE_MAXLEN)
 	
 	start_datetime = models.DateTimeField()
 	end_datetime = models.DateTimeField()
 	
+	long_votecodes = models.BooleanField()
 	state = fields.IntEnumField(cls=enums.State)
 	
 	# Other model methods and meta options
@@ -50,8 +50,8 @@ class Election(models.Model):
 		ordering = ['id']
 	
 	class ElectionManager(models.Manager):
-		def get_by_natural_key(self, id):
-			return self.get(id=id)
+		def get_by_natural_key(self, e_id):
+			return self.get(id=e_id)
 	
 	objects = ElectionManager()
 	
@@ -78,11 +78,11 @@ class Ballot(models.Model):
 	
 	class Meta:
 		ordering = ['election', 'serial']
-		unique_together = ('election', 'serial')
+		unique_together = ['election', 'serial']
 	
 	class BallotManager(models.Manager):
-		def get_by_natural_key(self, serial, id):
-			return self.get(serial=serial, election__id=id)
+		def get_by_natural_key(self, b_serial, e_id):
+			return self.get(serial=b_serial, election__id=e_id)
 	
 	objects = BallotManager()
 	
@@ -106,12 +106,12 @@ class Part(models.Model):
 	
 	class Meta:
 		ordering = ['ballot', 'tag']
-		unique_together = ('ballot', 'tag')
+		unique_together = ['ballot', 'tag']
 	
 	class PartManager(models.Manager):
-		def get_by_natural_key(self, tag, serial, id):
-			return self.get(tag=tag, ballot__serial=serial,
-				ballot__election__id=id)
+		def get_by_natural_key(self, p_tag, b_serial, e_id):
+			return self.get(tag=p_tag, ballot__serial=b_serial,
+				ballot__election__id=e_id)
 	
 	objects = PartManager()
 	
@@ -131,11 +131,11 @@ class Trustee(models.Model):
 		return "%s" % self.email
 	
 	class Meta:
-		unique_together = ('election', 'email')
+		unique_together = ['election', 'email']
 	
 	class TrusteeManager(models.Manager):
-		def get_by_natural_key(self, email, id):
-			return self.get(election__id=id, email=email)
+		def get_by_natural_key(self, t_email, e_id):
+			return self.get(election__id=e_id, email=t_email)
 	
 	objects = TrusteeManager()
 	
