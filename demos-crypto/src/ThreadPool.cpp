@@ -1,9 +1,7 @@
 /* File: ThreadPool.cpp */
 
-#include <deque>
-#include <vector>
+#include <queue>
 #include <memory>
-#include <algorithm>
 #include <stdexcept>
 #include <system_error>
 
@@ -132,7 +130,7 @@ void* ThreadPool::producer(void *argp)
 	
 	// Get references to thread_vars members
 	
-	deque<shared_ptr<ConsumerTask>> &task_queue = thread_vars->task_queue;
+	queue<shared_ptr<ConsumerTask>> &task_queue = thread_vars->task_queue;
 	
 	pthread_cond_t &cond = thread_vars->cond;
 	pthread_mutex_t &mutex = thread_vars->mutex;
@@ -160,7 +158,7 @@ void* ThreadPool::producer(void *argp)
 	
 	// Critical section: add task at the end of the queue
 	
-	task_queue.push_back(move(consumer_task));
+	task_queue.push(move(consumer_task));
 	
 	// Notify consumers if the task queue was previously empty
 	
@@ -183,7 +181,7 @@ void* ThreadPool::consumer(void *argp)
 	
 	// Get references to thread_vars members
 	
-	deque<shared_ptr<ConsumerTask>> &task_queue = thread_vars->task_queue;
+	queue<shared_ptr<ConsumerTask>> &task_queue = thread_vars->task_queue;
 	
 	pthread_cond_t &cond = thread_vars->cond;
 	pthread_mutex_t &mutex = thread_vars->mutex;
@@ -211,15 +209,12 @@ void* ThreadPool::consumer(void *argp)
 			break;
 		}
 		
-		// Critical section: get next task from the queue (fair scheduling)
+		// Critical section: get task from the head of the queue
 		
 		size_t total_workers, curr_worker;
 		shared_ptr<ConsumerTask> consumer_task;
 		
-		deque<shared_ptr<ConsumerTask>>::iterator consumer_task_it =
-			std::min_element(task_queue.begin(), task_queue.end());
-		
-		consumer_task = *consumer_task_it;
+		consumer_task = task_queue.front();
 		
 		curr_worker = consumer_task->curr_worker;
 		total_workers = consumer_task->total_workers;
@@ -227,7 +222,7 @@ void* ThreadPool::consumer(void *argp)
 		consumer_task->curr_worker++;
 		
 		if (consumer_task->curr_worker == consumer_task->total_workers)
-			task_queue.erase(consumer_task_it);
+			task_queue.pop();
 		
 		// Unlock the task queue mutex
 		
@@ -266,12 +261,6 @@ void ThreadPool::ConsumerTask::mutex_lock()
 void ThreadPool::ConsumerTask::mutex_unlock()
 {
 	pthread_mutex_unlock(&mutex);
-}
-
-bool ThreadPool::ConsumerTask::operator<(const ThreadPool::ConsumerTask& rhs) const
-{
-	const ThreadPool::ConsumerTask& lhs = *this;
-	return (lhs.total_workers - lhs.curr_worker) < (rhs.total_workers - rhs.curr_worker);
 }
 
 

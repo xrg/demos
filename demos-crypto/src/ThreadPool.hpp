@@ -3,8 +3,7 @@
 #ifndef THREAD_POOL_HPP
 #define THREAD_POOL_HPP
 
-#include <deque>
-#include <vector>
+#include <queue>
 #include <memory>
 #include <pthread.h>
 
@@ -28,7 +27,6 @@ public:
 		pthread_mutex_t mutex;
 		
 		friend ThreadPool;
-		bool operator<(const ConsumerTask& rhs) const;
 	};
 	
 	class ProducerTask {
@@ -51,7 +49,7 @@ private:
 	
 	struct ThreadVars {
 		
-		std::deque<std::shared_ptr<ConsumerTask>> task_queue;
+		std::queue<std::shared_ptr<ConsumerTask>> task_queue;
 		
 		pthread_cond_t cond;
 		pthread_mutex_t mutex;
