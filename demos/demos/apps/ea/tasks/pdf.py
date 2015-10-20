@@ -17,8 +17,7 @@ from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, \
 	Paragraph, Image, Spacer, PageBreak
 
-from demos.common.utils import config
-from demos.common.utils.base32 import _symbols
+from demos.common.utils import base32cf, config
 
 
 class BallotBuilder:
@@ -72,7 +71,7 @@ class BallotBuilder:
 		return h / w
 	
 	@staticmethod
-	def _trunc_ellipsis(text, font_name, font_size, width):
+	def _ellipsize(text, font_name, font_size, width):
 		"""Truncates a string so that is fits in the specified width. Adds
 		ellipsis at its end.
 		
@@ -126,12 +125,12 @@ class BallotBuilder:
 	def _url_prepare(self, text, url):
 		
 		line_width = self.page_width - self.cell_padding
-		text_width = stringWidth(text + 2*" ", self.font_bold, self.font_md)
+		text_width = stringWidth(text + 2*" ", self.sans_bold, self.font_md)
 		
-		url_lines = self._split_line(url, self.font_regular, self.font_md,
+		url_lines = self._split_line(url, self.sans_regular, self.font_md,
 			[line_width-text_width, line_width-self.url_indent])
 			
-		paragraph = "<font name='" + self.font_bold + "'>" + text + \
+		paragraph = "<font name='" + self.sans_bold + "'>" + text + \
 			"</font>" + 2*"&nbsp;" + "<link href='" + url + "'>" + \
 			"\n".join(url_lines) + "</link>"
 		
@@ -162,12 +161,19 @@ class BallotBuilder:
 	table_top_gap = page_width // 15
 	table_opt_gap = page_width // 50
 	
+	long_vc_split = 4
+	long_vc_hyphens = ceil(config.VOTECODE_LEN / long_vc_split) - 1
+	
 	# TrueType fonts
 	
-	font_dict = _load_ttf_family.__func__('Liberation Sans', ['Regular','Bold'])
+	sans_font_dict = _load_ttf_family.__func__('Liberation Sans', ['Regular','Bold'])
+	mono_font_dict = _load_ttf_family.__func__('Liberation Mono', ['Regular','Bold'])
 	
-	font_regular = font_dict['Regular']
-	font_bold = font_dict['Bold']
+	sans_regular = sans_font_dict['Regular']
+	sans_bold = sans_font_dict['Bold']
+	
+	mono_regular = mono_font_dict['Regular']
+	mono_bold = mono_font_dict['Bold']
 	
 	# DemosVoting logo
 	
@@ -180,7 +186,8 @@ class BallotBuilder:
 	# TableStyle definitions (main)
 	
 	table_opt_style = TableStyle([
-		('FONT',          ( 0, 0), (-1,-1), font_regular),
+		('FONT',          ( 0, 0), ( 0,-1), sans_regular),
+		('FONT',          ( 1, 0), (-1,-1), mono_regular),
 		('FONTSIZE',      ( 0, 0), (-1,-1), font_sm),
 		('ALIGN',         ( 0, 0), (-1,-1), 'CENTER'),
 		('INNERGRID',     ( 0, 0), (-1,-1), 0.25, colors.black),
@@ -191,7 +198,7 @@ class BallotBuilder:
 	])
 	
 	table_opt_extra1_style = TableStyle([
-		('FONT',          ( 0, 0), (-1, 0), font_bold),
+		('FONT',          ( 0, 0), (-1, 0), sans_bold),
 		('BOX',           ( 0, 0), (-1, 0), 1, colors.black),
 		('LINEABOVE',     ( 0, 0), (-1, 0), 2, colors.black),
 	])
@@ -201,8 +208,8 @@ class BallotBuilder:
 	])
 	
 	table_que_style = TableStyle([
-		('FONT',          ( 0, 0), ( 0,-1), font_bold),
-		('FONT',          ( 1, 0), ( 1,-1), font_regular),
+		('FONT',          ( 0, 0), ( 0,-1), sans_bold),
+		('FONT',          ( 1, 0), ( 1,-1), sans_regular),
 		('FONTSIZE',      ( 0, 0), (-1,-1), font_md),
 		('ALIGN',         ( 0, 0), (-1,-1), 'LEFT'),
 		('ALIGN',         ( 0, 0), (-1,-1), 'LEFT'),
@@ -223,7 +230,7 @@ class BallotBuilder:
 	# TableStyle definitions (header)
 	
 	table_top_style = TableStyle([
-		('FONT',          ( 0, 0), (-1,-1), font_bold),
+		('FONT',          ( 0, 0), (-1,-1), sans_bold),
 		('FONTSIZE',      ( 0, 0), (-1,-1), font_lg),
 		('ALIGN',         ( 0, 0), ( 0,-1), 'LEFT'),
 		('ALIGN',         ( 1, 0), ( 1,-1), 'CENTER'),
@@ -250,7 +257,7 @@ class BallotBuilder:
 		('VALIGN',        ( 1, 0), ( 1,-1), 'MIDDLE'),
 		('ALIGN',         ( 2, 0), ( 2,-1), 'RIGHT'),
 		('VALIGN',        ( 2, 0), ( 2,-1), 'BOTTOM'),
-		('FONT',          ( 2, 0), ( 2,-1), font_bold),
+		('FONT',          ( 2, 0), ( 2,-1), sans_bold),
 		('FONTSIZE',      ( 2, 0), ( 2,-1), font_size_tag),
 	])
 	
@@ -271,7 +278,7 @@ class BallotBuilder:
 	paragraph_url_style = ParagraphStyle(
 		name='url_style',
 		fontSize=font_md,
-		fontName=font_regular,
+		fontName=sans_regular,
 		alignment=enums.TA_LEFT,
 		firstLineIndent=-url_indent,
 		leftIndent=url_indent,
@@ -281,12 +288,15 @@ class BallotBuilder:
 	paragraph_hlp_style = ParagraphStyle(
 		name='hlp_style',
 		fontSize=font_md,
-		fontName=font_regular,
+		fontName=sans_regular,
 		alignment=enums.TA_CENTER,
 	)
 	
 	def __init__(self, election_obj):
 		"""Inits BallotBuilder and prepares common ballot data."""
+		
+		self.election_id = election_obj['id']
+		self.long_votecodes = election_obj['long_votecodes']
 		
 		# Translatable text
 		
@@ -305,24 +315,31 @@ class BallotBuilder:
 		self.help_text = _( "Please use one of the two sides to vote and the " \
 			"other one to audit your vote")
 		
+		# Votecode defaults
+		
+		if not self.long_votecodes:
+			vc_charset = "0123456789"
+			vc_maxchars = len(str(config.MAX_OPTIONS - 1))
+		else:
+			vc_charset = base32cf._chars + "-"
+			vc_maxchars = config.VOTECODE_LEN + self.long_vc_hyphens
+		
 		# Calculate table widths
 		
 		self.top_text_width = max([stringWidth(self.serial_text,
-			self.font_bold, self.font_lg), stringWidth(self.security_text,
-			self.font_bold, self.font_lg)]) + self.cell_padding
+			self.sans_bold, self.font_lg), stringWidth(self.security_text,
+			self.sans_bold, self.font_lg)]) + self.cell_padding
 		
 		self.top_value_width = (self.page_width -
-			(2 * self.top_text_width + self.table_top_gap))/2
+			(2 * self.top_text_width + self.table_top_gap)) / 2
 		
-		self.vc_width = max([stringWidth(self.vc_text,
-			self.font_bold, self.font_sm), max([stringWidth(c,
-			self.font_regular, self.font_sm) for c in "0123456789"]) *
-			len(str(config.MAX_OPTIONS - 1))]) + self.cell_padding
+		self.vc_width = max([stringWidth(self.vc_text, self.sans_bold,
+			self.font_sm), max([stringWidth(c, self.mono_regular, self.font_sm)
+			for c in vc_charset]) * vc_maxchars]) + self.cell_padding
 		
-		self.rec_width = max([stringWidth(self.rec_text,
-			self.font_bold, self.font_sm), max([stringWidth(c,
-			self.font_regular, self.font_sm) for c in _symbols]) *
-			config.RECEIPT_LEN]) + self.cell_padding
+		self.rec_width = max([stringWidth(self.rec_text, self.sans_bold,
+			self.font_sm), max([stringWidth(c, self.mono_regular, self.font_sm)
+			for c in base32cf._chars])*config.RECEIPT_LEN]) + self.cell_padding
 		
 		# Calculate table heights
 		
@@ -335,17 +352,17 @@ class BallotBuilder:
 		# Prepare common question data
 		
 		self.config_q_list = []
-		self.election_id = election_obj['id']
 		
 		for index, question_obj \
 			in enumerate(election_obj['__list_Question__'], start=1):
 			
-			two_columns = question_obj['columns'] == 2
+			two_columns = question_obj['columns']
 			
 			option_list = [optionc_obj['text'] for optionc_obj \
 				in question_obj['__list_OptionC__']]
 			
-			vc_chars = len(str(len(option_list)-1))
+			vc_chars = config.VOTECODE_LEN + self.long_vc_hyphens \
+				if self.long_votecodes else len(str(len(option_list)-1))
 			
 			vc_width  = self.vc_width
 			rec_width = self.rec_width
@@ -353,8 +370,8 @@ class BallotBuilder:
 			# Calculate option column width
 			
 			opt_width = self.cell_padding + max([stringWidth(self.opt_text,
-				self.font_bold, self.font_sm)] + [stringWidth(option,
-				self.font_regular, self.font_sm) for option in option_list])
+				self.sans_bold, self.font_sm)] + [stringWidth(option,
+				self.sans_regular, self.font_sm) for option in option_list])
 			
 			# Measure whitespace
 			
@@ -378,22 +395,20 @@ class BallotBuilder:
 				opt_width += empty
 				
 				for i in range(len(option_list)):
-					option_list[i] = BallotBuilder._trunc_ellipsis(
-						option_list[i], self.font_regular, self.font_sm,
-						opt_width - self.cell_padding)
+					option_list[i] = self._ellipsize(option_list[i], self.\
+						sans_regular, self.font_sm, opt_width-self.cell_padding)
 			
 			# Question title table
 			
 			question_text = self.question_text % {'index': index}
 			
-			que_text_width = stringWidth(question_text, self.font_bold,
+			que_text_width = stringWidth(question_text, self.sans_bold,
 				self.font_md) + self.cell_padding
 			
 			que_value_width = self.page_width - que_text_width
 			
-			text = BallotBuilder._trunc_ellipsis(question_obj['text'],
-				self.font_regular, self.font_md,
-				que_value_width - self.cell_padding)
+			text = self._ellipsize(question_obj['text'], self.sans_regular,
+				self.font_md, que_value_width - self.cell_padding)
 			
 			table_que = Table(data=[[question_text, text]], colWidths=\
 				[que_text_width, que_value_width], style=self.table_que_style
@@ -486,6 +501,8 @@ class BallotBuilder:
 			)
 			
 			table_s_list.append((table_hdr, table_ftr))
+			
+		vc_type = 'votecode' if not self.long_votecodes else 'long_votecode'
 		
 		# Iterate over all parts and fill element_list
 		
@@ -511,7 +528,7 @@ class BallotBuilder:
 				rec_width, vc_chars, table_que, two_columns) \
 				in zip(part_obj['__list_Question__'], self.config_q_list):
 				
-				vc_list = [optionv_obj['votecode'] for optionv_obj
+				vc_list = [optionv_obj[vc_type] for optionv_obj
 					in question_obj['__list_OptionV__']]
 				
 				rec_list = [optionv_obj['receipt'] for optionv_obj
@@ -520,9 +537,12 @@ class BallotBuilder:
 				col_widths = [opt_width, vc_width, rec_width]
 				title = [[self.opt_text, self.vc_text, self.rec_text]]
 				
-				vc_list = [str(vc).zfill(vc_chars) for vc in vc_list]
-				data_list = list(zip(opt_list, vc_list, rec_list))
+				if not self.long_votecodes:
+					vc_list = [str(vc).zfill(vc_chars) for vc in vc_list]
+				else:
+					vc_list = [base32cf.hyphen(vc, self.long_vc_split) for vc in vc_list]
 				
+				data_list = list(zip(opt_list, vc_list, rec_list))
 				data_len = len(data_list)
 				
 				# Loop until all options have been inserted
