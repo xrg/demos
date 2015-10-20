@@ -422,5 +422,5 @@ class CustomJSONEncoder(DjangoJSONEncoder):
 			r = b64encode(r).decode('ascii')
 			return r
 		
-		return super().default(o)
+		return super(CustomJSONEncoder, self).default(o)
 
