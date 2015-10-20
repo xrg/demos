@@ -32,8 +32,8 @@ for iapp in settings.DEMOS_APPS:
         durl = '^' + durl + '/'
     else:
         durl = '^'
-    urlpatterns += [ i18n_patterns(url(durl, include(urlconfig, namespace=iapp, app_name=iapp))),
-                    url(durl + 'api/', include(urlconfig.apipatterns, namespace='api', app_name=iapp)),
-                    ]
+    urlpatterns += i18n_patterns(url(durl, include(urlconfig, namespace=iapp, app_name=iapp)),
+                    url(durl + 'api/', include(urlconfig.apipatterns, namespace='api', app_name=iapp))
+                    )
 
 #eof
