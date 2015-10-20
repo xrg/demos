@@ -5,11 +5,15 @@ import math
 import logging
 import requests
 
-from enum import IntEnum, unique
 try:
     # Both Python3-specific
+    from enum import IntEnum, unique
     from itertools import zip_longest
 except ImportError:
+    class IntEnum:
+        pass
+    def unique(fn):
+        return fn
     from itertools import izip_longest as zip_longest
 
 try:
