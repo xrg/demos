@@ -1,7 +1,6 @@
 # File: views.py
 
 import random
-
 from base64 import b64encode
 from urllib.parse import urljoin, quote
 
@@ -21,7 +20,7 @@ from demos.apps.ea.forms import ElectionForm, OptionFormSet, \
 from demos.apps.ea.tasks import election_setup, pdf
 from demos.apps.ea.models import Config, Election, Task
 
-from demos.common.utils import base32, config, enums
+from demos.common.utils import base32cf, config, enums
 from demos.common.utils.dbsetup import _prep_kwargs
 
 
@@ -94,31 +93,27 @@ class CreateView(View):
 		if election_valid and question_valid and option_valid:
 			
 			election_obj = dict(election_form.cleaned_data)
-			
 			language = election_obj.pop('language')
-			trustee_list = election_obj.pop('trustee_list')
 			
 			# Pack questions, options and trustees in lists of dictionaries
 			
 			election_obj['__list_Question__'] = []
 			
-			for index, (question_form, option_formset) \
+			for q_index, (question_form, option_formset) \
 				in enumerate(zip(question_formset, option_formsets)):
 				
-				cleaned_data = question_form.cleaned_data
-				
 				question_obj = {
-					'index': index,
+					'index': q_index,
 					'text': question_form.cleaned_data['question'],
 					'columns': question_form.cleaned_data['columns'],
-					'choices': int(question_form.cleaned_data['choices']),
+					'choices': question_form.cleaned_data['choices'],
 					'__list_OptionC__': [],
 				}
 				
-				for index, option_form in enumerate(option_formset):
+				for o_index, option_form in enumerate(option_formset):
 					
 					option_obj = {
-						'index': index,
+						'index': o_index,
 						'text': option_form.cleaned_data['text'],
 					}
 					
@@ -126,61 +121,60 @@ class CreateView(View):
 				election_obj['__list_Question__'].append(question_obj)
 			
 			election_obj['__list_Trustee__'] = \
-				[{'email': email} for email in trustee_list]
+				[{'email': email} for email in election_obj.pop('trustee_list')]
 			
 			# Perform the requested action
 			
 			if request.is_ajax():
 				
-				# Create a sample ballot. Since this is not a real ballot,
-				# use pseudo-random number generators instead of urandom.
+				q_options_list = [len(question_obj['__list_OptionC__'])
+					for _question_obj in election_obj['__list_Question__']]
 				
-				serial = 100
-				bytes = config.CREDENTIAL_LEN
-				credential = random.getrandbits(bytes * 8).to_bytes(bytes,'big')
+				# Create a sample ballot. Since this is not a real ballot,
+				# pseudo-random number generators are used instead of urandom.
 				
 				ballot_obj = {
-					'serial': serial,
-					'credential': credential,
+					'serial': 100,
 					'__list_Part__': [],
 				}
 				
 				for tag in ['A', 'B']:
 					
-					security_code=base32.random(config.SECURITY_CODE_LEN, False)
-					
 					part_obj = {
 						'tag': tag,
-						'vote_token': 'vote-token',
-						'security_code': security_code,
+						'vote_token': 'vote_token',
+						'security_code': base32cf.random(
+							config.SECURITY_CODE_LEN,crypto=False
+						),
 						'__list_Question__': [],
 					}
 					
-					for question_obj in election_obj['__list_Question__']:
-						
-						options = len(question_obj['__list_OptionC__'])
-						
-						votecode_list = list(range(options))
-						random.shuffle(votecode_list)
-						
-						receipt_list = [base32.random(config.RECEIPT_LEN, False)
-							for _ in range(options)]
+					for options in q_options_list:
 						
 						question_obj = {
 							'__list_OptionV__': [],
 						}
 						
-						for votecode,receipt in zip(votecode_list,receipt_list):
+						if not election_obj['long_votecodes']:
+							votecode_list = list(range(options))
+							random.shuffle(votecode_list)
+						else:
+							votecode_list=[base32cf.random(config.VOTECODE_LEN,
+								crypto=False) for _ in range(options)]
+						
+						for votecode in votecode_list:
 							
 							data_obj = {
 								'votecode': votecode,
-								'receipt': receipt,
+								'receipt': base32cf.random(
+									config.RECEIPT_LEN, crypto=False
+								),
 							}
 							
 							question_obj['__list_OptionV__'].append(data_obj)
 						part_obj['__list_Question__'].append(question_obj)
 					ballot_obj['__list_Part__'].append(part_obj)
-				election_obj['id'] = 'election-id'
+				election_obj['id'] = 'election_id'
 				
 				# Temporarily enable the requested language
 				
@@ -206,8 +200,9 @@ class CreateView(View):
 						get_or_create(key='next_election_id')
 					
 					election_id = config_.value if not created else '0'
+					next_election_id = base32cf.decode(election_id) + 1
 					
-					config_.value = base32.encode(base32.decode(election_id)+1)
+					config_.value = base32cf.encode(next_election_id)
 					config_.save(update_fields=['value'])
 				
 				election_obj['id'] = election_id
@@ -261,7 +256,7 @@ class StatusView(View):
 		election_id = kwargs.get('election_id')
 		
 		try:
-			normalized = base32.normalize(election_id)
+			normalized = base32cf.normalize(election_id)
 		except (TypeError, ValueError):
 			pass
 		else:

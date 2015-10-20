@@ -185,7 +185,7 @@ def _prep_kwargs(model_obj, Model):
 	kwargs = {
 		field.name: model_obj[field.name]
 		for field in Model._meta.get_fields()
-		if not field.is_relation and not field.blank
+		if field.name in model_obj
 	}
 	
 	return kwargs

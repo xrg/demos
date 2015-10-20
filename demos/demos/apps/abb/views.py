@@ -5,7 +5,7 @@ import math
 import hashlib
 import logging
 
-from base64 import b64encode
+from base64 import b64decode
 from itertools import zip_longest
 from collections import OrderedDict
 
@@ -14,6 +14,7 @@ from google.protobuf import message
 from django import http
 from django.db import transaction
 from django.apps import apps
+from django.utils import timezone
 from django.conf.urls import include, url
 from django.shortcuts import get_object_or_404, redirect, render
 from django.middleware import csrf
@@ -22,12 +23,14 @@ from django.db.models.query import QuerySet
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.utils.decorators import method_decorator
 from django.core.urlresolvers import reverse
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.serializers.json import DjangoJSONEncoder
 
 from demos.apps.abb.models import Election, Question, Ballot, Part, \
 	OptionV, OptionC
 
-from demos.common.utils import api, base32, config, dbsetup, protobuf
+from demos.common.utils import api, base32cf, config, dbsetup, enums, hashers, \
+	protobuf
 from demos.common.utils.permutation import permute_ori
 
 logger = logging.getLogger(__name__)
@@ -51,8 +54,8 @@ class AuditView(View):
 		election_id = kwargs.get('election_id')
 		
 		try:
-			normalized = base32.normalize(election_id)
-		except (TypeError, ValueError):
+			normalized = base32cf.normalize(election_id)
+		except (AttributeError, TypeError, ValueError):
 			pass
 		else:
 			if normalized != election_id:
@@ -123,7 +126,7 @@ class AuditView(View):
 						
 						vote = 'A' if p.tag != 'A' else 'B'
 						
-						int_ = base32.decode(p.security_code) + q.index
+						int_ = base32cf.decode(p.security_code) + q.index
 						bytes_ = math.ceil(int_.bit_length() / 8)
 						value = hashlib.sha256(int_.to_bytes(bytes_, 'big'))
 						index = int.from_bytes(value.digest(), 'big')
@@ -233,38 +236,98 @@ class VoteView(View):
 		try:
 			votedata = json.loads(request.POST['votedata'])
 			
-			part1_votecodes = votedata['part1_votecodes']
-			part1_natural_key = votedata['part1_natural_key']
-			part2_security_code = votedata['part2_security_code']
+			e_id = votedata['e_id']
+			b_serial = votedata['b_serial']
+			b_credential = b64decode(votedata['b_credential'].encode())
+			p1_tag = votedata['p1_tag']
+			p1_votecodes = votedata['p1_votecodes']
+			p2_security_code = votedata['p2_security_code']
 			
-			part1 = Part.objects.get_by_natural_key(**part1_natural_key)
-			part2 = Part.objects.exclude(tag=part1.tag).\
-				get(ballot=part1.ballot)
+			election = Election.objects.get(id=e_id)
+			ballot = Ballot.objects.get(election=election, serial=b_serial)
 			
-			election_id = part1_natural_key['id']
-			question_qs = Question.objects.filter(election__id=election_id)
+			order = ('' if p1_tag == 'A' else '-') + 'tag'
+			part1, part2 = Part.objects.filter(ballot=ballot).order_by(order)
+			
+			question_qs = Question.objects.filter(election=election)
+			
+			# Verify election state
+			
+			now = timezone.now()
+			
+			if not(election.state == enums.State.RUNNING and now >= \
+				election.start_datetime and now < election.end_datetime):
+				raise Exception('Invalid election state')
+			
+			# Verify ballot's credential
+			
+			if not check_password(b_credential, ballot.credential_hash):
+				raise Exception('Invalid ballot credential')
+			
+			# Verify part2's security code
+			
+			salt = part2.security_code_hash2.split('$', 3)[2][::-1]
+			password = make_password(p2_security_code, salt, hasher='_pbkdf2')
+			hash = password.split('$', 3)[3]
+			
+			if not check_password(hash, part2.security_code_hash2):
+				raise Exception('Invalid part security code')
 			
 			# Verify vote's correctness and save it to the db in an atomic
-			# transaction. If anything fails, rollback and return an error.
+			# transaction. If anything fails, rollback and return the error.
+			
+			hasher = hashers.CustomPBKDF2PasswordHasher()
 			
 			with transaction.atomic():
-				for question, vc_list \
-					in zip_longest(question_qs, part1_votecodes):
+				for question in question_qs.iterator():
 					
-					vc_len = len(vc_list)
+					optionv_qs = OptionV.objects.\
+						filter(part=part1, question=question)
 					
-					if vc_len < 1 or vc_len > question.choices:
-						raise ValueError('VoteView: votecodes error')
+					vc_list = p1_votecodes[str(question.index)]
 					
-					optionv_qs = OptionV.objects.filter(part=part1,
-						question=question, votecode__in=vc_list)
+					if len(vc_list) < 1:
+						raise Exception('Not enough votecodes')
 					
-					if vc_len != optionv_qs.count():
-						raise ValueError('VoteView: votecodes error')
+					if len(vc_list) > question.choices:
+						raise Exception('Too many enough votecodes')
+					
+					if not election.long_votecodes:
+						optionv_qs = optionv_qs.filter(votecode__in=vc_list)
+						
+					else:
+						# Get all long votecode hashes and receipts
+						
+						optionvs = list(optionv_qs.\
+							values_list('index', 'long_votecode_hash'))
+						
+						indices, vc_hashes = [list(o) for o in zip(*optionvs)]
+						
+						# Hash and compare all input votecodes with the ones in
+						# the list of hashes. Return the corresponding indices.
+						
+						index_list = []
+						
+						for votecode in vc_list:
+						
+							i = hasher.verify_list(votecode, vc_hashes)
+							if i == -1: break
+							
+							del vc_hashes[i]
+							index = indices.pop(i)
+							
+							index_list.append(index)
+						
+						optionv_qs = optionv_qs.filter(index__in=index_list)
+					
+					# If lengths do not match, at least one votecode was invalid
+					
+					if optionv_qs.count() != len(vc_list):
+						raise Exception('Invalid votecode')
 					
 					optionv_qs.update(voted=True)
 				
-				part2.security_code = part2_security_code
+				part2.security_code = p2_security_code
 				part2.save(update_fields=['security_code'])
 		
 		except Exception:

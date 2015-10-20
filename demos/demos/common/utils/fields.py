@@ -5,7 +5,7 @@ from base64 import b64encode, b64decode
 from django.db import models
 from django.core.exceptions import ValidationError
 
-from demos.common.utils import base32
+from demos.common.utils import base32cf
 
 
 class IntEnumField(models.SmallIntegerField):
@@ -70,7 +70,7 @@ class Base32Field(models.PositiveIntegerField):
 			return value
 		
 		try:
-			value = base32.encode(value)
+			value = base32cf.encode(value)
 		except Exception as e:
 			raise ValidationError(e, code='invalid')
 		
@@ -89,7 +89,7 @@ class Base32Field(models.PositiveIntegerField):
 			return value
 		
 		try:
-			value = base32.decode(value)
+			value = base32cf.decode(value)
 		except Exception as e:
 			raise ValidationError(e, code='invalid')
 		
@@ -100,7 +100,7 @@ class Base32Field(models.PositiveIntegerField):
 		value = self._get_val_from_obj(obj)
 		
 		try:
-			value = base32.encode(value)
+			value = base32cf.encode(value)
 		except Exception as e:
 			raise ValidationError(e, code='invalid')
 		

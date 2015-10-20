@@ -2,6 +2,7 @@
 
 import io
 import os
+import hmac
 import json
 import math
 import time
@@ -11,6 +12,11 @@ import tarfile
 
 from base64 import b64encode
 from functools import partial
+try:
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
+
 from multiprocessing.pool import ThreadPool
 
 from google.protobuf import message
@@ -29,7 +35,7 @@ from demos.apps.ea.tasks import crypto, pdf
 from demos.apps.ea.tasks.masks import apply_mask
 from demos.apps.ea.models import Election, Task, RemoteUser
 
-from demos.common.utils import api, base32, config, dbsetup, enums
+from demos.common.utils import api, base32cf, config, dbsetup, enums
 from demos.common.utils.permutation import permute
 
 
@@ -38,11 +44,8 @@ def election_setup(election, election_obj, language):
 	
 	translation.activate(language)
 	
-	election_id = election_obj['id']
-	ballots = election_obj['ballots']
-	
 	tag_bits = 1
-	serial_bits = (ballots + 100).bit_length()
+	serial_bits = (election.ballots + 100).bit_length()
 	credential_bits = config.CREDENTIAL_LEN * 8
 	security_code_bits = config.SECURITY_CODE_LEN * 5
 	token_bits = serial_bits + credential_bits + tag_bits + security_code_bits
@@ -68,14 +71,18 @@ def election_setup(election, election_obj, language):
 	api_session = {app_name: api.Session(app_name, app_config)
 		for app_name in ['abb', 'vbb', 'bds']}
 	
-	# Generate question keys
+	# Generate question keys and calculate max_options
+	
+	max_options = 0
 	
 	for question_obj in election_obj['__list_Question__']:
 		
 		options = len(question_obj['__list_OptionC__'])
-		key = question_obj['key'] = crypto.gen_key(ballots, options)
 		
-		question_obj['key'] = key
+		if options > max_options:
+			max_options = options
+			
+		question_obj['key'] = crypto.gen_key(election.ballots, options)
 	
 	# Populate local and remote databases
 	
@@ -93,26 +100,26 @@ def election_setup(election, election_obj, language):
 	
 	# Generate ballots in groups of BATCH_SIZE
 	
-	progress = {'current': 0, 'total': ballots * 2}
+	progress = {'current': 0, 'total': election.ballots * 2}
 	current_task.update_state(state='PROGRESS', meta=progress)
 	
-	q_list = [(question['key'], len(question['__list_OptionC__'])) \
-		for question in election_obj['__list_Question__']]
+	q_list = [(question_obj['key'], len(question_obj['__list_OptionC__'])) \
+		for question_obj in election_obj['__list_Question__']]
 	
 	async_result = thread_pool.apply_async(crypto_gen, \
-		(ballots, q_list, min(config.BATCH_SIZE, ballots)))
+		(election.ballots, q_list, min(config.BATCH_SIZE, election.ballots)))
 	
-	for lo in range(100, ballots + 100, config.BATCH_SIZE):
+	for lo in range(100, election.ballots + 100, config.BATCH_SIZE):
 		
-		hi = lo + min(config.BATCH_SIZE, ballots + 100 - lo)
+		hi = lo + min(config.BATCH_SIZE, election.ballots + 100 - lo)
 		
 		# Get current batch's crypto elements and generate the next one's
 		
 		crypto_bsqo_list = async_result.get()
 		
-		if hi - 100 < ballots:
-			async_result = thread_pool.apply_async(crypto_gen, \
-				(ballots, q_list, min(config.BATCH_SIZE, ballots + 100 - hi)))
+		if hi - 100 < election.ballots:
+			async_result=thread_pool.apply_async(crypto_gen, (election.ballots,\
+				q_list, min(config.BATCH_SIZE, election.ballots + 100 - hi)))
 		
 		# Generate the rest data for all ballots and parts and store them in
 		# lists of dictionaries. They will be used to populate the databases.
@@ -124,7 +131,8 @@ def election_setup(election, election_obj, language):
 			# Generate a random credential and compute its hash value
 			
 			credential = os.urandom(config.CREDENTIAL_LEN)
-			credential_hash = make_password(credential, hasher='custom_pbkdf2')
+			credential_int = int.from_bytes(credential, 'big')
+			credential_hash = make_password(credential, hasher='_pbkdf2')
 			
 			ballot_obj = {
 				'serial': serial,
@@ -140,44 +148,88 @@ def election_setup(election, election_obj, language):
 				# access the votecodes (as password) and to verify the security
 				# code. The second hash uses the first hash's salt, reversed.
 				
-				security_code = base32.random(config.SECURITY_CODE_LEN)
+				security_code = base32cf.random(config.SECURITY_CODE_LEN)
 				
-				temp = make_password(security_code, hasher='custom_pbkdf2')
+				temp = make_password(security_code, hasher='_pbkdf2')
 				salt, hash = temp.split('$')[2:]
 				salt = salt[::-1]
 				
-				security_code_hash = make_password(hash, salt, 'custom_pbkdf2')
+				security_code_hash2 = make_password(hash,salt,hasher='_pbkdf2')
 				
 				part_obj = {
 					'tag': tag,
 					'security_code': security_code,
-					'security_code_hash': security_code_hash,
+					'security_code_hash2': security_code_hash2,
 					'__list_Question__': [],
 				}
 				
-				for index, crypto_o_list in enumerate(crypto_qo_list):
+				for q_index, crypto_o_list in enumerate(crypto_qo_list):
 					
-					options = len(crypto_o_list)
-					
-					# Generate random votecodes and receipts
-						
-					votecode_list = list(range(options))
-					rand.shuffle(votecode_list)
-					
-					receipt_list = [base32.random(config.RECEIPT_LEN)
-						for _ in range(options)]
-					
-					# Organize part's votecodes by each question
+					# Each ballot part's votecodes are grouped by question
 					
 					question_obj = {
 						'__list_OptionV__': [],
 					}
 					
-					for votecode, receipt, (com, decom, zk1, zk_state) \
-						in zip(votecode_list, receipt_list, crypto_o_list):
+					# Generate short votecodes
+					
+					options = len(crypto_o_list)
+					
+					votecode_list = list(range(options))
+					rand.shuffle(votecode_list)
+					
+					l_votecode_list = []
+					
+					if election.long_votecodes:
+						
+						# Long votecodes: each votecode is constructed as
+						# follows: hmac(security_code, credential + (q_index *
+						# max_options) + short_votecode), so that we get inique
+						# votecodes across all questions. All votecode hashes
+						# of a question in a ballot's part share the same salt.
+						
+						salt = None
+						
+						for votecode in votecode_list:
+							
+							key = base32cf.decode(security_code)
+							bytes = math.ceil(key.bit_length() / 8)
+							key = key.to_bytes(bytes, 'big')
+							
+							msg = credential_int+(q_index*max_options)+votecode
+							bytes = math.ceil(msg.bit_length() / 8)
+							msg = msg.to_bytes(bytes, 'big')
+							
+							hmac_obj = hmac.new(key, msg, digestmod='sha256')
+							digest = int.from_bytes(hmac_obj.digest(), 'big')
+							
+							l_votecode = base32cf.\
+								encode(digest)[-config.VOTECODE_LEN:]
+							
+							l_votecode_hash = make_password(l_votecode,
+								salt=salt, hasher='_pbkdf2')
+							
+							if salt is None:
+								salt = l_votecode_hash.split('$', 3)[2]
+							
+							l_votecode_list.append((l_votecode,l_votecode_hash))
+					
+					for votecode, l_votecode, crypto_list in zip_longest(\
+						votecode_list, l_votecode_list, crypto_o_list):
+						
+						com, decom, zk1, zk_state = crypto_list
+						l_votecode, l_votecode_hash = l_votecode or (None, None)
+						
+						# Generate receipt
+						
+						receipt = base32cf.random(config.RECEIPT_LEN)
+						
+						# 
 						
 						optionv_obj = {
 							'votecode': votecode,
+							'long_votecode': l_votecode,
+							'long_votecode_hash': l_votecode_hash,
 							'receipt': receipt,
 							'com': com,
 							'decom': decom,
@@ -198,7 +250,7 @@ def election_setup(election, election_obj, language):
 				# Get the other part's security_code
 				
 				other_part_obj = ballot_obj['__list_Part__'][1-i]
-				security_code = base32.decode(other_part_obj['security_code'])
+				security_code = base32cf.decode(other_part_obj['security_code'])
 				
 				# The vote token consists of two parts. The first part is the
 				# ballot's serial number and credential and the part's tag,
@@ -228,7 +280,7 @@ def election_setup(election, election_obj, language):
 				
 				# Encode the vote token
 				
-				vote_token = base32.encode(p)
+				vote_token = base32cf.encode(p)
 				vote_token = vote_token.zfill((token_bits + pad_bits) // 5)
 				
 				part_obj['vote_token'] = vote_token
@@ -240,7 +292,7 @@ def election_setup(election, election_obj, language):
 			progress['current'] += 1
 			current_task.update_state(state='PROGRESS', meta=progress)
 		
-		# Generate PDF ballots and store them in an in-memory tar file
+		# Generate PDF ballots and keep them in an in-memory tar file
 		
 		tarbuf = io.BytesIO()
 		tar = tarfile.open(fileobj=tarbuf, mode='w:gz')
@@ -266,7 +318,7 @@ def election_setup(election, election_obj, language):
 		
 		tar.close()
 		
-		# Get optionv permutations from the corresponding security codes
+		# Get optionvs' permutations from the corresponding security codes
 		
 		for ballot_obj in ballot_list:
 			
@@ -282,12 +334,14 @@ def election_setup(election, election_obj, language):
 					# n is the hash of the current part's security code plus
 					# the question's index, converted back to an integer.
 					
-					int_ = base32.decode(security_code) + i
+					int_ = base32cf.decode(security_code) + i
 					bytes_ = math.ceil(int_.bit_length() / 8)
 					value = hashlib.sha256(int_.to_bytes(bytes_, 'big'))
-					perm_index = int.from_bytes(value.digest(), 'big')
+					p_index = int.from_bytes(value.digest(), 'big')
 					
-					optionv_list = permute(optionv_list, perm_index);
+					optionv_list = permute(optionv_list, p_index);
+					
+					# Set the indices in proper order
 					
 					for index, optionv in enumerate(optionv_list):
 						optionv['index'] = index
@@ -325,7 +379,7 @@ def election_setup(election, election_obj, language):
 	data = {
 		'model': 'Election',
 		'natural_key': {
-			'id': election_obj['id']
+			'e_id': election_obj['id']
 		},
 		'fields': {
 			'state': enums.State.RUNNING
@@ -339,7 +393,7 @@ def election_setup(election, election_obj, language):
 	
 	# Delete celery task
 	
-	task = Task.objects.get(election_id=election_id)
+	task = Task.objects.get(election_id=election.id)
 	task.delete()
 	
 	translation.deactivate()

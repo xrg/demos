@@ -16,7 +16,7 @@ from demos.common.utils import config
 class ElectionForm(forms.Form):
 	
 	title = forms.CharField(label=_('Title'),
-		min_length=1, max_length=config.TEXT_LEN)
+		min_length=1, max_length=config.TITLE_MAXLEN)
 	
 	start_datetime = fields.DateTimeField(label=_('Start at'))
 	end_datetime = fields.DateTimeField(label=_('End at'))
@@ -28,6 +28,9 @@ class ElectionForm(forms.Form):
 	
 	trustee_list = fields.MultiEmailField(label=_('Trustee e-mails'),
 		min_length=1, max_length=config.MAX_TRUSTEES)
+	
+	long_votecodes = forms.BooleanField(label=_('Enhanced privacy'),
+		required=False)
 	
 	error_msg = {
 		'passed': _("The date and time you selected have passed."),
@@ -69,16 +72,16 @@ class ElectionForm(forms.Form):
 		# Verify that end_datetime is not before end_datetime
 		
 		if start_datetime and end_datetime and end_datetime <= start_datetime:
-			self.add_error(None, forms.ValidationError(self.error_msg['order'],
-				code='invalid'))
+			self.add_error(None, forms.ValidationError(
+				self.error_msg['order'], code='invalid'))
 
 
 class QuestionForm(forms.Form):
 	
 	question = forms.CharField(label=_('Question'), min_length=1,
-		max_length=config.TEXT_LEN)
+		max_length=config.QUESTION_MAXLEN)
 	
-	compact = forms.BooleanField(label=_('Compact view'), required=False)
+	columns = forms.BooleanField(label=_('Display in columns'), required=False)
 	
 	def __init__(self, *args, **kwargs):
 		
@@ -92,10 +95,6 @@ class QuestionForm(forms.Form):
 	
 	def clean_question(self):
 		return _trim_whitespace(self.cleaned_data['question']);
-	
-	def clean(self):
-		cleaned_data = super().clean()
-		cleaned_data['columns'] = 2 if cleaned_data.get('compact') else 1
 
 
 class BaseQuestionFormSet(BaseFormSet):
@@ -142,7 +141,7 @@ class BaseQuestionFormSet(BaseFormSet):
 class OptionForm(forms.Form):
 	
 	text = forms.CharField(label=_('Option'),
-		min_length=1, max_length=config.TEXT_LEN)
+		min_length=1, max_length=config.OPTION_MAXLEN)
 	
 	def clean_option(self):
 		return _trim_whitespace(self.cleaned_data['text']);

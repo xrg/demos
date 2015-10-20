@@ -6,13 +6,14 @@ import logging
 import requests
 
 from enum import IntEnum, unique
-from itertools import zip_longest
+from base64 import b64encode
 from urllib.parse import urljoin, quote
 
 from django import http
 from django.db import transaction
 from django.apps import apps
 from django.utils import timezone
+from django.db.models import Count, Max
 from django.shortcuts import render, redirect
 from django.middleware import csrf
 from django.views.generic import View
@@ -24,8 +25,7 @@ from django.contrib.auth.hashers import check_password, make_password
 from demos.apps.vbb.models import Election, Question, Ballot, Part, \
 	OptionV, OptionC
 
-from demos.common.utils import api, base32, config, dbsetup
-from demos.common.utils.enums import State
+from demos.common.utils import api, base32cf, config, dbsetup, enums, hashers
 
 logger = logging.getLogger(__name__)
 app_config = apps.get_app_config('vbb')
@@ -60,7 +60,7 @@ class VoteView(View):
 		NO_ERROR = 0
 	
 	@staticmethod
-	def _parse_input(election_id, vote_token, now=None):
+	def _parse_input(election_id, vote_token,):
 		
 		retval = []
 		
@@ -73,7 +73,7 @@ class VoteView(View):
 		
 		retval.append(election)
 		
-		if election.state == State.ERROR:
+		if election.state == enums.State.ERROR:
 			raise VoteView.Error(VoteView.State.INVALID_ELECTION_ID, *retval)
 		
 		# Get question list from database
@@ -85,22 +85,21 @@ class VoteView(View):
 		
 		retval.append(question_qs)
 		
-		# Verify election
+		# Verify election state
 		
-		if now is None:
-			now = timezone.now()
+		now = timezone.now()
 		
-		if election.state == State.WORKING or \
-			(election.state == State.RUNNING and now < election.start_datetime):
+		if election.state == enums.State.WORKING or (election.state == \
+			enums.State.RUNNING and now < election.start_datetime):
 			raise VoteView.Error(VoteView.State.ELECTION_NOT_STARTED, *retval)
-			
-		elif (election.state == State.RUNNING and now >= election.end_datetime):
+		
+		elif election.state==enums.State.RUNNING and now>=election.end_datetime:
 			raise VoteView.Error(VoteView.State.ELECTION_ENDED, *retval)
-			
-		elif election.state == State.PAUSED:
+		
+		elif election.state == enums.State.PAUSED:
 			raise VoteView.Error(VoteView.State.ELECTION_PAUSED, *retval)
-			
-		elif election.state != State.RUNNING:
+		
+		elif election.state != enums.State.RUNNING:
 			raise VoteView.Error(VoteView.State.SERVER_ERROR, *retval)
 		
 		# Vote token bits definitions
@@ -126,8 +125,8 @@ class VoteView(View):
 		# tokens of the two parts appear to be completely different.
 		
 		try:
-			p = base32.decode(vote_token) & ((1 << token_bits) - 1)
-		except (TypeError, ValueError):
+			p = base32cf.decode(vote_token) & ((1 << token_bits) - 1)
+		except (AttributeError, TypeError, ValueError):
 			raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
 		
 		p1_len = serial_bits + credential_bits + tag_bits
@@ -145,10 +144,14 @@ class VoteView(View):
 		# the other part's security code
 		
 		serial = (p1 >> credential_bits + tag_bits) & ((1 << serial_bits) - 1)
-		credential = ((p1 >> tag_bits) & ((1 << credential_bits) - 1)).\
-			to_bytes(config.CREDENTIAL_LEN, 'big')
+		
+		credential = ((p1 >> tag_bits) & ((1 << credential_bits) - 1))
+		credential = credential.to_bytes(config.CREDENTIAL_LEN, 'big')
+			
 		tag = 'A' if p1 & ((1 << tag_bits) - 1) == 0 else 'B'
-		security_code = base32.encode((~p2) & ((1 << security_code_bits) - 1))
+		
+		security_code = base32cf.encode((~p2) & ((1 << security_code_bits) - 1))
+		security_code = security_code.zfill(config.SECURITY_CODE_LEN)
 		
 		# Get ballot object and verify credential
 		
@@ -176,19 +179,23 @@ class VoteView(View):
 		retval.append(part_qs)
 		part2 = part_qs.last()
 		
-		salt = part2.security_code_hash.split('$')[2][::-1]
-		password = make_password(security_code, salt, hasher='custom_pbkdf2')
-		hashval = password.split('$')[3]
+		salt = part2.security_code_hash2.split('$', 3)[2][::-1]
+		password = make_password(security_code, salt, hasher='_pbkdf2')
+		hash = password.split('$', 3)[3]
 		
-		if not check_password(hashval, part2.security_code_hash):
+		retval.append(b64encode(credential).decode())
+		
+		if not check_password(hash, part2.security_code_hash2):
 			raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
 		
 		retval.append(security_code)
 		
 		# Check if the ballot is already used
 		
-		if OptionV.objects.filter(part__in=part_qs, voted=True).exists():
+		if ballot.used:
 			raise VoteView.Error(VoteView.State.BALLOT_USED, *retval)
+		
+		retval.append(now)
 		
 		return retval
 	
@@ -209,8 +216,8 @@ class VoteView(View):
 		for key, value in args.items():
 			
 			try:
-				args[key] = base32.normalize(value)
-			except (TypeError, ValueError):
+				args[key] = base32cf.normalize(value)
+			except (AttributeError, TypeError, ValueError):
 				pass
 			else:
 				normalized |= args[key] != value
@@ -223,40 +230,50 @@ class VoteView(View):
 		# second matched object (part2) is the other part. '_parse_input' method
 		# raises a VoteView.Error exception for the first error that occurs.
 		
-		now = timezone.now()
-		
 		try:
-			election, question_qs, ballot, (part1, _), _ = \
-				VoteView._parse_input(election_id, vote_token, now)
+			election, question_qs, ballot, (part1, _), credential, _, now = \
+				VoteView._parse_input(election_id, vote_token)
 		
 		except VoteView.Error as e:
+			
+			status = 422
+			args_len = len(e.args)
+			now = timezone.now()
+			
 			context = {
 				'state': e.args[0].value,
-				'election': e.args[1] if len(e.args) >= 2 else None,
-				'questions': e.args[2] if len(e.args) >= 3 else None,
-				'serial': e.args[3].serial if len(e.args) >= 4 else None,
-				'tag': e.args[4].first().tag if len(e.args) >= 5 else None,
+				'election': e.args[1] if args_len >= 2 else None,
+				'questions': e.args[2] if args_len >= 3 else None,
+				'serial': str(e.args[3].serial) if args_len >= 4 else None,
+				'tag': e.args[4].first().tag if args_len >= 5 else None,
 			}
-			status = 422
 		
 		else:
+			
+			status = 200
+			max_options = question_qs.\
+				annotate(Count('optionc')).aggregate(Max('optionc__count'))
+			abb_url = urljoin(config.URL['abb'], quote('%s/' % election_id))
+			security_code_hash2_split = part1.security_code_hash2.split('$', 3)
+			
 			context = {
+				'state': VoteView.State.NO_ERROR.value,
 				'election': election,
 				'questions': question_qs,
-				'serial': ballot.serial,
+				'serial': str(ballot.serial),
 				'tag': part1.tag,
-				'iterations': part1.security_code_hash.split('$')[1],
-				'salt': part1.security_code_hash.split('$')[2][::-1],
-				'state': VoteView.State.NO_ERROR.value,
+				'abb_url': abb_url,
+				'credential': credential,
+				'votecode_len': config.VOTECODE_LEN,
+				'max_options': max_options['optionc__count__max'],
+				'sc_iterations': security_code_hash2_split[1],
+				'sc_salt': security_code_hash2_split[2][::-1],
+				'sc_length': config.SECURITY_CODE_LEN,
 			}
-			status = 200
 		
 		context.update({
-			'vote_token': vote_token,
-			'maxlength': config.SECURITY_CODE_LEN,
-			'State': { s.name: s.value for s in VoteView.State },
-			'abb_url': urljoin(config.URL['abb'], quote("%s/" % election_id)),
 			'timezone_now': now,
+			'State': { s.name: s.value for s in VoteView.State },
 		})
 		
 		csrf.get_token(request)
@@ -273,8 +290,8 @@ class VoteView(View):
 		# raises a VoteView.Error exception for the first error that occurs.
 		
 		try:
-			 election, question_qs, ballot, part_qs, part2_security_code = \
-				VoteView._parse_input(election_id, vote_token)
+			 election, question_qs, ballot, part_qs, credential, \
+			 	security_code,_ = VoteView._parse_input(election_id, vote_token)
 		except VoteView.Error as e:
 			return http.JsonResponse({'error': e.args[0].value}, status=422)
 		
@@ -292,89 +309,128 @@ class VoteView(View):
 		
 		# Perform the requested action
 		
-		if json_obj.get('command') == 'security-code':
+		if json_obj.get('command') == 'verify-security-code':
 			
-			# The client sends the security code's hash in order to verify it
-			# and to get access the votecodes (acts as a password). The hash's
-			# hash (used for the verification) uses the hash's salt, reversed.
+			# The client sends the security code's hash in order to verify.
+			# Since this acts as the password, the server stores the hash's
+			# hash, which uses the hash's salt, but reversed.
 			
-			hash_value = json_obj.get('hash_value')
+			hash = json_obj.get('hash')
 			
-			if not isinstance(hash_value, str):
+			if not isinstance(hash, str):
 				return http.JsonResponse(error, status=422)
 			
-			if not check_password(hash_value, part1.security_code_hash):
+			if not check_password(hash, part1.security_code_hash2):
 				return http.HttpResponseForbidden()
 			
-			# Return a list of questions, where each question element is a list
-			# of votecodes. The client, who just proved that knows the security
-			# code, is responsible for restoring their correct order.
+			# Return a list of questions, where each question's element is a
+			# list of (index, short_votecode) tuples. The client, who just
+			# proved that knows the security code, is responsible for
+			# restoring their correct order, using that security code.
 			
-			part1_votecodes = [
-				list(OptionV.objects.filter(part=part1, question=question).\
-				values_list('votecode', flat=True)) for question in question_qs
+			p1_votecodes = [
+				(question.index, list(OptionV.objects.filter(part=part1,
+				question=question).values_list('index', 'votecode')))
+				for question in question_qs.iterator()
 			]
 			
-			return http.JsonResponse(part1_votecodes, safe=False)
+			return http.JsonResponse(p1_votecodes, safe=False)
 		
 		elif json_obj.get('command') == 'vote':
 			
-			vc_struct = json_obj.get('votecodes')
+			vote_obj = json_obj.get('vote_obj')
 			
-			# Ensure 'part1_votecodes' validity
+			# Verify vote_obj's structure validity
 			
-			if not (isinstance(vc_struct, list) and
-				len(question_qs) == len(vc_struct) and
-				all(isinstance(vc_l, list) for vc_l in vc_struct) and
-				all(isinstance(vc, str) for vc_l in vc_struct for vc in vc_l)):
+			q_options = dict(question_qs.annotate(\
+				Count('optionc')).values_list('index', 'optionc__count'))
+			
+			vc_type = int if not election.long_votecodes else str
+			
+			if not (isinstance(vote_obj, dict)
+				and len(vote_obj) == len(q_options)
+				and all(isinstance(q_index, str)
+				and isinstance(vc_list, list)
+				and 1 <= len(vc_list) <= q_options.get(int(q_index), -1)
+				and all(isinstance(vc, vc_type) for vc in vc_list)
+					for q_index, vc_list in vote_obj.items())):
+				
 				return http.JsonResponse(error, status=422)
 			
-			# Verify vote's correctness and save it to the db in an atomic
-			# transaction. If anything fails, rollback and return an error.
-			# Also return the corresponding receipts.
+			# Verify votecodes, save vote and respond with the receipts
+			
+			response_obj = {}
+			hasher = hashers.CustomPBKDF2PasswordHasher()
 			
 			try:
-				receipts = []
+				for question in question_qs.iterator():
+					
+					optionv_qs = OptionV.objects.\
+						filter(part=part1, question=question)
+					
+					votecode_list = vote_obj[str(question.index)]
+					
+					if not election.long_votecodes:
+						
+						# Get only the requested short votecodes and receipts
+						
+						optionvs = dict(optionv_qs.filter(votecode__in=\
+							votecode_list).values_list('votecode', 'receipt'))
+						
+						# Return receipt list in the correct order
+						
+						receipt_list = [optionvs[vc] for vc in votecode_list]
+						
+					else:
+						
+						# Get all long votecode hashes and receipts
+						
+						optionvs = list(optionv_qs.\
+							values_list('long_votecode_hash', 'receipt'))
+						
+						vc_hashes, receipts = [list(o) for o in zip(*optionvs)]
+						
+						# Hash and compare all input votecodes with the ones in
+						# the list of hashes. Return the corresponding receipts.
+						
+						receipt_list = []
+						
+						for votecode in votecode_list:
+						
+							i = hasher.verify_list(votecode, vc_hashes)
+							if i == -1: break
+							
+							del vc_hashes[i]
+							receipt = receipts.pop(i)
+							
+							receipt_list.append(receipt)
+					
+					# If lengths do not match, at least one votecode was invalid
+					
+					if len(receipt_list) != len(votecode_list):
+						raise VoteView.Error(VoteView.State.REQUEST_ERROR)
+					
+					response_obj[str(question.index)] = receipt_list
 				
-				with transaction.atomic():
-					for question, vc_list in zip_longest(question_qs,vc_struct):
-						
-						vc_len = len(vc_list)
-						
-						if vc_len < 1 or vc_len > question.choices:
-							raise VoteView.Error(VoteView.State.REQUEST_ERROR)
-						
-						optionv_qs = OptionV.objects.filter(part=part1, 
-							question=question, votecode__in=vc_list)
-						
-						if vc_len != optionv_qs.count():
-							raise VoteView.Error(VoteView.State.REQUEST_ERROR)
-						
-						receipts.append([dict(optionv_qs.values_list('votecode',
-							'receipt')).get(votecode) for votecode in vc_list])
-						
-						optionv_qs.update(voted=True)
-					
-					part2.security_code = part2_security_code
-					part2.save(update_fields=['security_code'])
-					
-					# Send vote data to the abb server
-					
-					abb_session = api.Session('abb', app_config)
-					
-					data = {
-						'votedata': json.dumps({
-							'part1_natural_key': {
-								'id': election.id,
-								'serial': ballot.serial,
-								'tag': part1.tag,
-							},
-							'part1_votecodes': vc_struct,
-							'part2_security_code': part2_security_code,
-						})
-					}
-					
-					abb_session.post('command/vote/', data)
+				# Send vote data to the abb server
+				
+				abb_session = api.Session('abb', app_config)
+				
+				data = {
+					'votedata': json.dumps({
+						'e_id': election.id,
+						'b_serial': ballot.serial,
+						'b_credential': credential,
+						'p1_tag': part1.tag,
+						'p1_votecodes': vote_obj,
+						'p2_security_code': security_code,
+					})
+				}
+				
+				abb_session.post('command/vote/', data)
+				
+				ballot.used = True
+				ballot.save(update_fields=['used'])
 			
 			except requests.exceptions.RequestException:
 				return http.JsonResponse(error, status=422)
@@ -382,8 +438,12 @@ class VoteView(View):
 			except VoteView.Error as e:
 				return http.JsonResponse({'error': e.args[0].value}, status=422)
 			
+			except Exception:
+				logger.exception('VoteView: Unexpected exception')
+				return http.JsonResponse(error, status=422)
+			
 			else:
-				return http.JsonResponse(receipts, safe=False)
+				return http.JsonResponse(response_obj, safe=False)
 		
 		return http.JsonResponse(error, status=422)
 

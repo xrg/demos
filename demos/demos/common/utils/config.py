@@ -1,10 +1,15 @@
 # File: config.py
 
-TEXT_LEN = 128  # chars
-RECEIPT_LEN = 6   # base32
-VOTECODE_LEN = 6   # chars
-CREDENTIAL_LEN = 8   # bytes
+TITLE_MAXLEN = 128    # chars
+OPTION_MAXLEN = 128    # chars
+QUESTION_MAXLEN = 128   # chars
+
+RECEIPT_LEN = 10  # base32
+VOTECODE_LEN = 16   # base32
+CREDENTIAL_LEN = 8    # bytes
 SECURITY_CODE_LEN = 8   # base32
+
+HASH_LEN = 128   # chars
 
 # ------------------------------------------------------------------------------
 

@@ -5,31 +5,33 @@ import re
 _masks = {
  	
  	'bds' : {
-	 	'Election': ['id', 'title', 'ballots', 'start_datetime', \
-	 		'end_datetime', 'state'],
+	 	'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
+	 		'long_votecodes', 'state'],
 	 	'Trustee': ['email'],
 	 	'Ballot': ['serial'],
 	 	'Part': ['tag', 'security_code', 'vote_token'],
 	 },
  	
  	'abb' : {
-	 	'Election': ['id', 'title', 'ballots', 'start_datetime', \
-	 		'end_datetime', 'state'],
+	 	'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
+	 		'long_votecodes', 'state', 'ballots'],
 	 	'Question': ['text', 'key', 'index', 'choices'],
 	 	'OptionC': ['text', 'index'],
-	 	'Ballot': ['serial'],
-	 	'Part': ['tag'],
-	 	'OptionV' : ['votecode', 'com', 'zk1', 'index', 'question'],
+	 	'Ballot': ['serial', 'credential_hash'],
+	 	'Part': ['tag', 'security_code_hash2'],
+	 	'OptionV' : ['votecode', 'long_votecode_hash', 'com', 'zk1', 'index',
+	 		'question'],
 	 },
  	
  	'vbb' : {
-	 	'Election': ['id', 'title', 'ballots', 'start_datetime', \
-	 		'end_datetime', 'state'],
+	 	'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
+	 		'long_votecodes', 'state', 'ballots'],
 	 	'Question': ['text', 'index', 'columns', 'choices'],
 	 	'OptionC': ['text', 'index'],
 	 	'Ballot': ['serial', 'credential_hash'],
-	 	'Part': ['tag', 'security_code_hash'],
-	 	'OptionV' : ['votecode', 'receipt', 'index', 'question'],
+	 	'Part': ['tag', 'security_code_hash2'],
+	 	'OptionV' : ['votecode', 'long_votecode_hash', 'receipt', 'index',
+	 		'question'],
 	 },
 }
 
