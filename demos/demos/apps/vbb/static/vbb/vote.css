@@ -199,6 +199,10 @@
 	background-color: #444444;
 }
 
+.tooltip-inner {
+	max-width: none;
+}
+
 #confirm-modal .modal-footer button,
 #security-code-modal .modal-footer button {
 	width: 116px;
@@ -216,6 +220,10 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.modal-body table td:nth-child(n+2) {
+	font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
 .modal-body .panel-heading {

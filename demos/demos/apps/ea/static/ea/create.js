@@ -116,9 +116,9 @@ $(".question-remove").click(function(e) {
 	question.remove();
 });
 
-$(".question-edit").click(function(e) {
+$(".question-entry").click(function(e) {
 	
-	var question_entry = $(this).parent(".question-entry");
+	var question_entry = $(this);
 	var index = question_entry.attr("data-index");
 	var question = $(".question[data-index='" + index + "']");
 	

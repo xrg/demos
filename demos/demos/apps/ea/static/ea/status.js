@@ -34,6 +34,13 @@ function updateProgress() {
 				return (className.match(/glyphicon-\S+/g) || []).join(" ");
 			});
 			
+			// Handle error case
+			
+			if (data.state == state_list.ERROR) {
+				$(".alert-danger").removeClass("hidden");
+				return;
+			}
+			
 			// Set the appropriate glyphicon classes
 			
 			var glyphicon = state_item.children(".glyphicon");

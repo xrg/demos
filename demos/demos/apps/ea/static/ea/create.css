@@ -11,7 +11,8 @@
 	width: 56px;
 }
 
-.question-entry > td:not(:last-child):hover {
+.question-entry > td:hover,
+.question-entry > th:hover {
 	cursor: pointer;
 }
 
@@ -102,8 +103,8 @@
 }
 
 #form-buttons button {
-	white-space: nowrap;
 	overflow: hidden;
+	white-space: nowrap;
 	text-overflow: ellipsis;
 }
 
@@ -127,13 +128,12 @@
 	text-align: center;
 }
 
-.input-group-checkbox > .input-group-btn > .btn:focus,
-.input-group-checkbox > .input-group-btn > .btn:hover {
-	z-index: 5;
+.input-group-spinner > input {
+	z-index: 10 !important;
 }
 
 .input-group-spinner > input:focus {
-	z-index: 999;
+	z-index: 10!important;
 }
 
 .input-group-spinner > .input-group-btn > .btn {
@@ -156,4 +156,90 @@
 	left: 4px;
 	font-size: 8px;
 	position: absolute;
+}
+
+/* -------------------------------------------------------------------------- */
+
+/* http://bootsnipp.com/snippets/featured/material-design-switch */
+
+.input-group-addon.material-switch {
+	width: 100%;
+	height: 34px;
+	border-left: 1px solid #ccc ;
+}
+
+.material-switch > div {
+	width: 100%;
+}
+
+.material-switch > div > input[type="checkbox"] {
+	display: none;   
+}
+
+.material-switch > div > label {
+	cursor: pointer;
+	height: 0px;
+	position: relative;
+	display: block;
+	width: 100%;
+}
+
+.material-switch > div > label::before {
+	background: rgb(0, 0, 0);
+	border-radius: 8px;
+	-webkit-bbox-shadow: inset 0px 0px 10px rgba(0, 0, 0, 0.5);
+	-moz-box-shadow: inset 0px 0px 10px rgba(0, 0, 0, 0.5);
+	box-shadow: inset 0px 0px 10px rgba(0, 0, 0, 0.5);
+	content: '';
+	height: 16px;
+	width: 40px;
+	margin-top: -5.5px;
+	position: absolute;
+	opacity: 0.3;
+	-webkit-transition: all 0.4s ease-in-out;
+	-moz-transition: all 0.4s ease-in-out;
+	-o-transition: all 0.4s ease-in-out;
+	transition: all 0.4s ease-in-out;
+	top: -5px;
+	right: calc(50% - 20px);
+}
+
+.material-switch > div > label::after {
+	background: rgb(255, 255, 255);
+	border-radius: 16px;
+	-webkit-box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+	-moz-box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+	box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+	content: '';
+	height: 12px;
+	width: 12px;
+	position: absolute;
+	-webkit-transition: all 0.3s ease-in-out;
+	-moz-transition: all 0.3s ease-in-out;
+	-o-transition: all 0.3s ease-in-out;
+	transition: all 0.3s ease-in-out;
+	top: -8.5px;
+	right: calc(50% + 6px);
+}
+
+.material-switch > div > input[type="checkbox"]:checked + label::before {
+	background: inherit;
+	opacity: 0.5;
+}
+
+.material-switch > div > input[type="checkbox"]:checked + label::after {
+	background: inherit;
+	right: calc(50% - 18px);
+}
+
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 768px) and (max-width: 991px) {
+
+	.form-group > label[for="id_election-long_votecodes"] + .input-group > .input-group-addon:first-child {
+		max-width: 155px;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
 }

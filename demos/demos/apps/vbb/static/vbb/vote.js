@@ -44,7 +44,7 @@ $("#vote-submit").tooltip({
 
 // -----------------------------------------------------------------------------
 
-function ajax_error_msg(jqXHR, modal) {
+function ajax_error_ui_handler(jqXHR) {
 	
 	// Determine proper error state
 	
@@ -52,34 +52,35 @@ function ajax_error_msg(jqXHR, modal) {
 	
 	if (jqXHR.status == 0)
 		state = State.CONNECTION_ERROR;
-	else if (!jqXHR.hasOwnProperty("responseJSON") || jqXHR.responseJSON.hasOwnProperty("error"))
-		state = State.SERVER_ERROR;
-	else
+	else if (jqXHR.hasOwnProperty("responseJSON") && jqXHR.responseJSON.hasOwnProperty("error"))
 		state = jqXHR.responseJSON.error;
+	else
+		state = State.SERVER_ERROR;
 	
 	// Disable all options
 	
-	disable_vote_ui();
+	disable_voter_ui();
 	
 	// Display an alert with the the error message
 	
 	var alert_danger = $(".alert-danger");
 	
-	alert_danger.removeClass("hidden");
 	alert_danger.find("span[data-state='" + state + "']").removeClass("hidden");
 	alert_danger.find("span:not([data-state='" + state + "'])").addClass("hidden");
+	alert_danger.removeClass("hidden");
 	
 	// Scroll to the alert element
 	
-	if (typeof modal !== "undefined")
-		modal.modal("hide");
+	$(".modal").each(function(e) {
+		$(this).modal("hide");
+	});
 	
 	$("html, body").animate({
 		scrollTop: $("main").offset().top
 	}, 400);
 }
 
-function disable_vote_ui() {
+function disable_voter_ui() {
 	
 	var carousel = $("#carousel");
 	var submit_btn = $("#vote-submit");
@@ -88,7 +89,6 @@ function disable_vote_ui() {
 	carousel.addClass("disabled");
 	carousel.find("button").prop("disabled", true);
 	
-	options.removeClass("active");
 	options.attr("aria-pressed", false);
 	options.find(".glyphicon").addClass("hidden");
 	
@@ -112,10 +112,10 @@ $(".option").click(function(e) {
 	
 	if (selected) {
 		
-		var max_choices = question.data("max-choices");
-		var choices = question.find(".option.active").not(this).length;
+		var choices = question.data("choices");
+		var options = question.find(".option.active").not(this).length;
 		
-		if (choices >= max_choices) {
+		if (options >= choices) {
 			
 			var last_index = checked_queue.shift();
 			var last_selected = question.find(".option[data-index='" + last_index + "']");
@@ -146,72 +146,119 @@ $("#security-code-input").on("input", function(e) {
 	
 	var input = $(this);
 	var value = input.val();
+	
+	var btn_ok = $("#security-code-ok");
+	
+	var form_group = input.closest(".form-group");
+	var form_control = input.siblings(".form-control-feedback");
+	
 	var maxlen = input.prop("maxLength");
 	
+	// reset input if necessary
+	
 	if (value.length != maxlen) {
+		
 		security_code_state("reset");
 		return;
 	}
 	
+	// please wait spinner
+			
 	security_code_state("spin");
+	
+	// compute security code's hash
 	
 	var salt = input.data("salt");
 	var iterations = input.data("iterations");
 	
-	value = sjcl.codec.base32.normalize(value);
+	try {
+		value = sjcl.codec.base32cf.normalize(value);
+	}
+	catch (err) {
+		security_code_state("error");
+		return;
+	}
 	
-	var hash_value = sjcl.codec.base64.fromBits(
+	var hash = sjcl.codec.base64.fromBits(
 		sjcl.misc.pbkdf2(value, salt, iterations)
 	);
+	
+	// request security code's verification
 	
 	$.ajax({
 		type: "POST",
 		data: {
 			csrfmiddlewaretoken: csrfmiddlewaretoken,
-			jsonfield: JSON.stringify({command: 'security-code', hash_value: hash_value}),
+			jsonfield: JSON.stringify({command: 'verify-security-code', hash: hash}),
 		},
 		success: function(data, textStatus, jqXHR) {
 			
-			var votecodes = data;
+			// parse the security code
 			
-			var base32 = input.val();
-			var bits = sjcl.codec.base32.toBits(base32);
+			security_code = sjcl.codec.base32cf.toBits(value);
+			var bits, perm = sjcl.bn.fromBits(security_code);
 			
-			$(".question").each(function(index, question) {
+			// verify that data has the required number elements
+			
+			var questions = $(".question");
+			
+			if (questions.length != data.length)
+				ajax_error_ui_handler(jqXHR);
+			
+			// iterate over questions
+			
+			for (var i = 0, ilen = data.length; i < ilen; i++) {
 				
-				var index = $(question).data("index");
+				var q_index = data[i][0];
+				var q_votecodes = transpose(data[i][1]);
 				
-				var number = sjcl.bn.fromBits(bits).add(index).toBits();
-				var hash = sjcl.hash.sha256.hash(number);
-				var perm = sjcl.bn.fromBits(hash);
+				// verify that data has the required number elements
 				
-				var votecode_list = permute_ori(votecodes[index], perm);
+				var question = questions.filter("[data-index='" + q_index + "']");
 				
-				$(question).find(".option").each(function(index, option) {
-					var index = $(option).data("index");
-					$(option).data("votecode", votecode_list[index]);
-				});
-			});
+				if (question.length != 1)
+					ajax_error_ui_handler(jqXHR);
+				
+				// build the permutation index
+				
+				bits = perm.add(q_index).toBits();
+				bits = sjcl.hash.sha256.hash(bits);
+				var p_index = sjcl.bn.fromBits(bits);
+				
+				// restore votecodes' order
+				
+				var o_index_list = q_votecodes[0];
+				var votecode_list = permute_ori(q_votecodes[1], p_index);
+				
+				// iterate over options
+				
+				for (var j = 0, jlen = o_index_list.length; j < jlen; j++) {
+					
+					// verify that data has the required number elements
+					
+					var option = question.find(".option[data-index='" + o_index_list[j] + "']");
+					
+					if (option.length != 1)
+						ajax_error_ui_handler(jqXHR);
+					
+					// assign the votecode to the option
+					
+					option.data("votecode", votecode_list[j]);
+				}
+			}
 			
 			security_code_state("success");
-			$("#security-code-info").text(base32);
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
 			
-			if (jqXHR.status == 403) {
-				
+			// forbidden or server error
+			
+			if (jqXHR.status == 403)
 				security_code_state("error");
-				input.focus();
-				
-			} else {
-				
-				ajax_error_msg(jqXHR, $("#security-code-modal"));
-			}
+			else
+				ajax_error_ui_handler(jqXHR);
 		},
 	});
-});
-
-$("#security-code-cancel").click(function(e) {
 });
 
 function security_code_state(state) {
@@ -245,6 +292,7 @@ function security_code_state(state) {
 		input.prop("disabled", false);
 		
 		input.css("text-indent", "30px");
+		input.focus();
 		
 	} else if (state == "spin") {
 		
@@ -267,21 +315,23 @@ function security_code_state(state) {
 	}
 }
 
+$("#security-code-cancel").click(function(e) {
+	
+});
+
 // -----------------------------------------------------------------------------
 
 $("#vote-submit").click(function(e) {
 	
 	var questions = $(".question");
 	
-	// Check if the user has voted for all questions
+	// Check if the user has filled in all questions
 	
 	var filled_questions = 0;
 	
-	questions.each(function(index, element) {
+	questions.each(function(index) {
 		
-		var question = $(element);
-		
-		if (question.find(".option.active").length > 0) 
+		if ($(this).find(".option.active").length > 0) 
 			filled_questions += 1;
 	});
 	
@@ -303,23 +353,36 @@ $("#vote-submit").click(function(e) {
 	
 	// Now, fill in the confirm-modal with the user's selections
 	
-	var confirm_modal = $("#confirm-modal");
-	
-	modal_with_tables(confirm_modal, questions, function(question, table) {
+	function votecode_calc(question, option) {
 		
-		var vc_chars = ((question.find(".option").length - 1) + "").length;
+		// short votecode version: just return the short votecode
 		
-		question.find(".option.active").each(function(index, element) {
+		var votecode = option.data("votecode");
+		if (!long_votecodes) return [votecode];
+		
+		// long votecode version: check if option already has a long votecode
+		// (e.g.: the user may have clicked cancel before), if not, generate it
+		
+		var long_votecode = option.data("long_votecode");
+		
+		if (typeof long_votecode === "undefined") {
 			
-			var option = $(element);
-			var text = option.text();
-			var votecode = option.data("votecode");
+			var q_index = parseInt(question.data("index"));
+			var msg_extra = (q_index * max_options) + votecode;
 			
-			table.append("<tr><td>" + text + "</td><td>" + zfill(votecode, vc_chars) + "</td></tr>");
-		});
-	});
+			var hmac = new sjcl.misc.hmac(security_code, sjcl.hash.sha256);
+			hmac.update(sjcl.bn.fromBits(credential).add(msg_extra).toBits());
+			
+			long_votecode = sjcl.codec.base32cf.fromBits(hmac.digest());
+			long_votecode = long_votecode.slice(-votecode_len);
+			
+			option.data("long_votecode", long_votecode);
+		}
+		
+		return [sjcl.codec.base32cf.hyphen(long_votecode, 4)];
+	}
 	
-	confirm_modal.modal("show");
+	prep_modal_with_q(votecode_calc, "#confirm-modal");
 });
 
 $("#vote-submit").focusout(function(e) {
@@ -330,29 +393,26 @@ $("#vote-confirm").click(function(e) {
 	
 	$(this).siblings().addBack().prop("disabled", true);
 	
-	// Prepare the data for the server. 'votecodes' is an array of questions,
-	// ordered by their index. Each array's element is another array of the
-	// selected votecodes.
+	// Prepare vote data for the server. 'vote_obj' is an object of questions.
+	// Each key is the question's index and each value is the list of votecodes.
 	
-	var questions = $(".question");
-	var votecodes = new Array();
+	var vote_obj = {};
 	
-	questions.each(function(index, element) {
+	$(".question").each(function(index) {
 		
-		var question = $(element);
-		var index = question.data("index");
+		var vc_list = new Array();
+		var q_index = String($(this).data("index"));
 		
-		var votecode_list = new Array();
-		
-		question.find(".option.active").each(function(index, element) {
+		$(this).find(".option.active").each(function(index) {
 			
-			var option = $(element);
-			var votecode = option.data("votecode");
+			var votecode = (!long_votecodes) ? 
+				parseInt($(this).data("votecode")) :
+				String($(this).data("long_votecode"));
 			
-			votecode_list.push(votecode);
+			vc_list.push(votecode);
 		});
 		
-		votecodes[index] = votecode_list;
+		vote_obj[q_index] = vc_list;
 	});
 	
 	// Now, send the votecodes to the server
@@ -361,51 +421,51 @@ $("#vote-confirm").click(function(e) {
 		type: "POST",
 		data: {
 			csrfmiddlewaretoken: csrfmiddlewaretoken,
-			jsonfield: JSON.stringify({command: 'vote', votecodes: votecodes}),
+			jsonfield: JSON.stringify({command: 'vote', vote_obj: vote_obj}),
 		},
 		success: function(data, textStatus, jqXHR) {
 			
 			// Fill in the receipt-modal with the received receipts
 			
-			var receipt_modal = $("#receipt-modal");
-			var confirm_modal = $("#confirm-modal");
-			
-			modal_with_tables(receipt_modal, questions, function(question, table) {
+			function receipt_calc(question, option) {
 				
-				question.find(".option.active").each(function(index, element) {
-					
-					var option = $(element);
-					
-					var text = option.text();
-					var votecode = option.data("votecode");
-					var receipt = data[question.data("index")].shift();
-					
-					table.append("<tr><td>" + text + "</td><td>" + votecode + "</td><td>" + receipt + "</td></tr>");
-				});
-			});
+				var q_index = String(question.data("index"));
+				
+				var votecode = (!long_votecodes) ? 
+					parseInt(option.data("votecode")) :
+					String(option.data("long_votecode"));
+				
+				var receipt = data[q_index].shift();
+				
+				if (long_votecodes)
+					votecode = sjcl.codec.base32cf.hyphen(votecode, 4);
+				
+				return [votecode, receipt];
+			}
 			
-			disable_vote_ui();
-			confirm_modal.modal("hide");
-			
-			confirm_modal.on("hidden.bs.modal", function (e) {
-				receipt_modal.modal("show");
-			});
+			disable_voter_ui();
+			prep_modal_with_q(receipt_calc, "#receipt-modal", "#confirm-modal");
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
 			
-			ajax_error_msg(jqXHR, $("#confirm-modal"));
+			ajax_error_ui_handler(jqXHR);
 		},
 	});
 });
 
-function modal_with_tables(modal, questions, callback) {
+function prep_modal_with_q(callback, modal, old_modal) {
+	
+	var questions = $(".question");
+	
+	var modal = $(modal);
+	var old_modal = (typeof old_modal !== "undefined") ? $(old_modal) : null;
 	
 	var base_panel = modal.find(".panel.hidden");
 	modal.find(".panel:not(.hidden)").remove();
 	
-	questions.each(function(index, element) {
+	questions.each(function(index) {
 		
-		var question = $(element);
+		var question = $(this);
 		var panel = base_panel.clone();
 		
 		panel.removeClass("hidden");
@@ -418,8 +478,25 @@ function modal_with_tables(modal, questions, callback) {
 		var title = question.find(".title").text();
 		
 		heading.append(((questions.length > 1) ? (" " + (index + 1)) : ("")) + ": " + title);
-		return callback(question, table);
+		
+		question.find(".option.active").each(function(index) {
+			
+			var row = "<td>" + $(this).text() + "</td>";
+			var columns = callback(question, $(this));
+			
+			for (var i = 0, len = columns.length; i < len; i++)
+				row += "<td>" + columns[i] + "</td>";
+			
+			table.append("<tr>" + row + "</tr>");
+		});
 	});
+	
+	if (old_modal) {
+		
+		old_modal.one("hidden.bs.modal", function(e) { modal.modal("show"); });
+		old_modal.modal("hide");
+		
+	} else modal.modal("show");
 }
 
 $("#receipt-modal .modal-header .close").click(function(e) {
@@ -513,9 +590,9 @@ function carousel_upd_controls(item) {
 
 function carousel_upd_all() {
 	
-	$("#carousel .item").each(function(index, element) {
+	$("#carousel .item").each(function(index) {
 		
-		var item = $(element);
+		var item = $(this);
 		var active = item.hasClass("active");
 		
 		item.addClass("active");
@@ -527,30 +604,6 @@ function carousel_upd_all() {
 	});
 	
 	carousel_upd_controls();
-}
-
-var debounce = function (func, threshold, execAsap) {
-	
-	// http://www.paulirish.com/2009/throttled-smartresize-jquery-event-handler/
-	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
-	
-	var timeout;
-	
-	return function debounced () {
-		var obj = this;
-		function delayed () {
-			if (!execAsap)
-				func.apply(obj);
-			timeout = null;
-		};
-		
-		if (timeout)
-			clearTimeout(timeout);
-		else if (execAsap)
-			func.apply(obj);
-		
-		timeout = setTimeout(delayed, threshold || 100);
-	};
 }
 
 $(window).resize(debounce(carousel_upd_all));
@@ -578,16 +631,13 @@ function permute(iterable, index) {
 	
 	var seq = iterable.slice();
 	var fact = factorial(seq.length);
-	var index = (new sjcl.bn(index)).mod(fact);
 	var perm = new Array();
-	var divmod;
+	var next, index = (new sjcl.bn(index)).mod(fact);
 	
 	while (seq.length > 0) {
 		
 		fact = fact.div(seq.length);
-		divmod = index.divmod(fact);
-		next = divmod[0];
-		index = divmod[1];
+		next = index.divmod(fact, index);
 		item = seq.splice(parseInt(next.toString(), 16), 1);
 		perm.push(item);
 	}
@@ -600,19 +650,13 @@ function permute_ori(iterable, index) {
 	var seq = iterable.slice();
 	
 	var fact = factorial(seq.length);
-	var index = (new sjcl.bn(index)).mod(fact);
-	
-	var divmod;
+	var pos, index = (new sjcl.bn(index)).mod(fact);
 	var next = new Array();
 	
 	for (var i = seq.length; i > 0; i--) {
 		
 		fact = fact.div(i);
-		
-		divmod = index.divmod(fact);
-		pos = divmod[0];
-		index = divmod[1];
-		
+		pos = index.divmod(fact, index);
 		next.push(pos);
 	}
 	
@@ -628,3 +672,30 @@ function permute_ori(iterable, index) {
 	return perm;
 }
 
+function transpose(a) {
+
+	// Calculate the width and height of the Array
+	var w = a.length ? a.length : 0,
+		h = a[0] instanceof Array ? a[0].length : 0;
+
+	// In case it is a zero matrix, no transpose routine needed.
+	if(h === 0 || w === 0) { return []; }
+	
+	var i, j, t = [];
+
+	// Loop through every item in the outer array (height)
+	for(i=0; i<h; i++) {
+
+		// Insert a new row (array)
+		t[i] = [];
+
+		// Loop through every item per item in outer array (width)
+		for(j=0; j<w; j++) {
+
+			// Save transposed data.
+			t[i][j] = a[j][i];
+		}
+	}
+
+	return t;
+};

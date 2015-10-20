@@ -200,7 +200,7 @@ main > .container {
 	background-color: #ffffff;
 }
 
-main > .container > .row > div > *:last-child {
+main > .container > .row > * > *:last-child {
 	margin-bottom: 0px;
 }
 
@@ -299,13 +299,18 @@ footer .vertical-separator {
 	margin-top: 0px;
 }
 
-.election-box > .header > span {
+.election-box > .header > .time {
 	color: #666;
+	text-decoration: none;
 }
 
-.election-box > .header > span > .glyphicon {
+.election-box > .header > .time > .glyphicon {
 	top: 2px;
 	margin-right: 2px;
+}
+
+.election-box > .header > .tooltip > .tooltip-inner {
+	max-width: none;
 }
 
 .election-box > .body {

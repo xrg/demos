@@ -56,7 +56,7 @@ $("#election-id-modal button:last").click(function(e) {
 	}
 });
 
-$("#election-id-modal input").on("input change", function(e) {
+$("#election-id-modal input").on("input change remove", function(e) {
 	
 	var input = $(this);
 	
@@ -68,21 +68,101 @@ $("#election-id-modal input").on("input change", function(e) {
 $("#election-id-modal input").keypress(function(e) {
 	
 	if (e.which == 13) {
-		$("#election-id-modal button:last").click();
+		$(this).closest(".modal").find("button:last").click();
 	}
 });
 
 // Election box ----------------------------------------------------------------
 
-$(".election-box > .header > span > span:not(.glyphicon)").each(function(index, element) {
+$(document).ready(function() {
 	
-	var span = $(element);
+	var time = $(".election-box > .header > .time");
 	
-	var t1 = moment(span.data("t1"));
-	var t2 = moment(span.data("t2"));
+	if (!time.length)
+		return;
 	
-	span.text(span.text().replace("%s", t1.to(t2, true)));
+	var span = time.children(".message");
+	
+	// common values
+	
+	span.data("start-datetime", moment(span.data("start-datetime")));
+	span.data("end-datetime", moment(span.data("end-datetime")));
+	
+	span.data("now-difftime", moment().diff(span.data("now-datetime")));
+	
+	// tooltip
+	
+	var datetime = time.find(".datetime");
+	
+	var t1 = datetime.children(":first-child").text();
+	var t2 = datetime.children(":last-child").text();
+	
+	var t1_split = t1.split(",");
+	var t2_split = t2.split(",");
+	
+	time.tooltip({
+		placement: "bottom",
+		container: ".election-box > .header",
+		title: t1 + " - " + ((t1_split[0] == t2_split[0]) ? t2_split[1] : t2),
+	});
+	
+	update_election_box_time();
 });
+
+function update_election_box_time() {
+	
+	var span = $(".election-box > .header > .time > .message");
+	
+	var start_datetime = span.data("start-datetime");
+	var end_datetime = span.data("end-datetime");
+	var now_datetime = moment().add(span.data("now-difftime"), "ms");
+	
+	var t1, t2, msg, to;
+	
+	// Select the appropriate message
+	
+	if (now_datetime < start_datetime) {
+		
+		t1 = now_datetime;
+		t2 = start_datetime;
+		
+		to = t1.to(t2, true);
+		msg = "starts-msg";
+		
+	} else if (now_datetime >= end_datetime) {
+		
+		t1 = end_datetime;
+		t2 = now_datetime;
+		
+		to = t1.to(t2, true);
+		msg = "ended-msg";
+		
+	} else {
+		
+		t1 = now_datetime;
+		t2 = end_datetime;
+		
+		to = t1.to(t2, true);
+		msg = (to.match(/\d+/g) != null) ? "remaining-p-msg" : "remaining-s-msg";
+	}
+	
+	span.text(span.data(msg).replace("%s", to));
+	
+	// Schedule next message update
+	
+	var timeout, diff = Math.abs(t1.diff(t2, "s"));
+	
+	if (diff < 45)
+		timeout = diff;
+	else if (diff < 45 * 60)
+		timeout = 60;
+	else if (diff < 22 * 60 * 60)
+		timeout = 60 * 60;
+	else
+		timeout = 24 * 60 * 60;
+	
+	window.setTimeout(update_election_box_time, timeout * 1000);
+}
 
 // Numeric input in textbox ----------------------------------------------------
 
@@ -122,6 +202,32 @@ $(".select-placeholder").on("change update", function(e) {
 	$(this).css("color", color);
 	
 }).trigger("change");
+
+// Event debounce --------------------------------------------------------------
+
+var debounce = function (func, threshold, execAsap) {
+	
+	// http://www.paulirish.com/2009/throttled-smartresize-jquery-event-handler/
+	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
+	
+	var timeout;
+	
+	return function debounced () {
+		var obj = this;
+		function delayed () {
+			if (!execAsap)
+				func.apply(obj);
+			timeout = null;
+		};
+		
+		if (timeout)
+			clearTimeout(timeout);
+		else if (execAsap)
+			func.apply(obj);
+		
+		timeout = setTimeout(delayed, threshold || 100);
+	};
+}
 
 // Pad a numeric string on the left with zero digits ---------------------------
 

@@ -1,17 +1,15 @@
-// -----------------------------------------------------------------------------
-
-$("#election-check").click(function(e) {
+$("#audit-button").click(function(e) {
 	
-	var election_id = $(this).parent(".form-inline").find("input").val();
+	var audit_panel = $("#audit-panel");
+	var input = $(this).closest(".input-group").find("input");
 	
-	if (election_id)
-		window.location.href = audit_url.replace("%s", election_id);
-});
-
-$("#ballot-check").click(function(e) {
+	var serial = input.val();
 	
-	var alert1 = $(this).closest(".alert");
-	var serial = $(this).parent(".form-inline").find("input").val();
+	if (!serial) {
+		input.closest(".panel-input").removeClass("success error").addClass("warning");
+		input.focus();
+		return;
+	}
 	
 	$.ajax({
 		type: "POST",
@@ -21,7 +19,7 @@ $("#ballot-check").click(function(e) {
 		},
 		success: function(data, textStatus, jqXHR) {
 			
-			$("#audit-box").removeClass("hidden");
+			var panel_group1 = $(), panel_group2 = $();
 			
 			var b_url = data.url;
 			var b_vote = data.vote;
@@ -34,10 +32,10 @@ $("#ballot-check").click(function(e) {
 				var p_url = b_url + "parts/" + p_tag + "/";
 				
 				var tabpane = $("#part-" + p_tag.toLowerCase() + ".tab-pane");
-				var panels = tabpane.find(".panel.hidden").clone().appendTo(tabpane);
+				var panels = tabpane.find(".panel.hidden").clone(true).appendTo(tabpane);
 				
-				tabpane.find(".panel:not(.hidden)").remove();
-				panels.removeClass("hidden");
+				panel_group1 = panel_group1.add(panels);
+				panel_group2 = panel_group2.add(tabpane.find(".panel:not(.hidden)"));
 				
 				if (b_vote != null && b_vote == p_tag)
 					panels.find("table").addClass("vote-col");
@@ -62,16 +60,28 @@ $("#ballot-check").click(function(e) {
 						
 						var tr = trs.eq(o);
 						
-						tr.find(".votecode").text(zfill(o_votecode, vc_chars));
+						tr.find(".votecode > span").text(zfill(o_votecode, vc_chars));
 						
 						if (b_vote != null) {
-							var tr_voted = tr.find(".voted");
 							
-							if (b_vote == p_tag && o_voted == true) {
+							var tr_voted = tr.find(".voted");
+							var tr_voted_span = tr_voted.children("span");
+							
+							if (b_vote != p_tag) {
+								
+								var text = tr.data("text");
+								
+								tr_voted_span.text(text);
+								tr_voted.tooltip({title: text, trigger: "manual"});
+								
 								tr_voted.removeClass("hidden");
-							} else if (b_vote != p_tag) {
-								tr_voted.text(tr.data("text"));
+								tr_voted.hover(option_tooltip_in, option_tooltip_out);
+								
+							} else if (b_vote == p_tag && o_voted == true) {
+								
 								tr_voted.removeClass("hidden");
+								tr_voted_span.prop("aria-hidden", true);
+								tr_voted_span.addClass("glyphicon glyphicon-ok");
 							}
 						}
 						
@@ -87,18 +97,52 @@ $("#ballot-check").click(function(e) {
 					}
 				}
 			}
+			
+			input.closest(".panel-input").removeClass("error warning");//.addClass("success");
+			
+			// Update audit panel
+			
+			audit_panel.fadeOut({
+				complete: function() {
+					panel_group2.find("voted").tooltip("destroy");
+					panel_group2.remove();
+					panel_group1.removeClass("hidden");
+				},
+			});
+			
+			audit_panel.fadeIn();
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
-			alert1.addClass("alert-danger").removeClass("alert-warning");
+			
+			audit_panel.fadeOut();
+			input.closest(".panel-input").removeClass("success warning").addClass("error");
+			input.focus();
 		}
 	});
 });
+
+function option_tooltip_in(e) {
+	
+	var button = $(this);
+	var span = button.children("span");
+	
+	if (button.width() < span.width()) {
+		button.tooltip("show");
+	}
+}
+
+function option_tooltip_out(e) {
+	
+	$(this).tooltip("hide");
+}
 
 function json_viewer(e) {
 	
 	var modal = $("#json-viewer");
 	var mbody = modal.find(".modal-body");
 	var mcontent = modal.find(".modal-content");
+	
+	// Check if we already have the requested data
 	
 	var url = $(this).data("url");
 	var cached_url = modal.data("cached-url");
@@ -109,6 +153,15 @@ function json_viewer(e) {
 	}
 	
 	modal.data("cached-url", url);
+	
+	// Set modal title
+	
+	var button = $(e.target);
+	var mtitle = modal.find(".modal-title");
+	
+	mtitle.text(button.closest("table").find("thead > tr > th:eq(" + button.closest("td").index() + ")").text());
+	
+	// Initialize loading spinner
 	
 	var spinner = mcontent.data("spinner");
 	
@@ -128,6 +181,8 @@ function json_viewer(e) {
 	mbody.children(":not(.spinner)").addClass("hidden");
 	mbody.children(".spinner").removeClass("hidden").prepend(spinner.el);
 	
+	// Show the modal and request the dta from the server
+	
 	modal.find("a").addClass("disabled");
 	modal.modal("show");
 	
@@ -138,7 +193,8 @@ function json_viewer(e) {
 			
 			var json = JSON.stringify(data, undefined, '    ');
 			
-			// http://stackoverflow.com/a/7220510
+			// JSON syntax highlight
+			// Source: http://stackoverflow.com/a/7220510
 			
 			json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			json = json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
@@ -194,3 +250,29 @@ $("#json-viewer").on("hidden.bs.modal", function(e) {
 		spinner.stop();
 });
 
+$("#audit-input").on("input change remove", function(e) {
+	
+	var input = $(this);
+	
+	input.closest(".panel-input").removeClass("success error warning");
+	input.focus();
+});
+
+$("#audit-input").keypress(function(e) {
+	
+	if (e.which == 13) {
+		$(this).closest(".input-group").find("button").click();
+	}
+});
+
+// -----------------------------------------------------------------------------
+
+$(".panel-input *").focusin(function(e) {
+	$(this).closest(".panel-input").addClass("focus");
+});
+
+$(".panel-input *").focusout(function(e) {
+	$(this).closest(".panel-input").removeClass("focus");
+});
+
+// -----------------------------------------------------------------------------

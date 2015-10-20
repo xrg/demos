@@ -29,6 +29,10 @@
 				<p>{% trans "Unable to fetch election state, retrying..." %}</p>
 			</div>
 			
+			<div class="alert alert-dnager fade in hidden" role="alert">
+				<p>{% trans "The election was stopped due to a fatal error." %}</p>
+			</div>
+			
 			<div class="list-group">
 				<a class="list-group-item" data-state="{{ State.DRAFT }}">
 					{% trans "Election defined" %}
