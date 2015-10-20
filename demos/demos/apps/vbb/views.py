@@ -6,8 +6,17 @@ import logging
 import requests
 
 from enum import IntEnum, unique
-from itertools import zip_longest
-from urllib.parse import urljoin, quote
+try:
+    # Both Python3-specific
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
+
+try:
+    from urllib.parse import urljoin, quote
+except ImportError:
+    from urllib import quote
+    from urlparse import urljoin
 
 from django import http
 from django.db import transaction
