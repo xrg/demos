@@ -3,7 +3,7 @@
 from django.db import models
 from django.core import urlresolvers
 
-from demos.common.utils import config, crypto, enums, fields
+from demos.common.utils import config, enums, fields
 
 
 class Config(models.Model):
