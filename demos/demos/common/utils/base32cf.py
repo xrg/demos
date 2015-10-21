@@ -4,6 +4,7 @@ import re
 import math
 from os import urandom
 from random import getrandbits
+from demos.common.utils import intc
 
 # Reference: http://www.crockford.com/wrmg/base32.html
 
@@ -12,9 +13,11 @@ _chars = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 try:
     _translation = str.maketrans('OIL', '011')
+    _str_translate = str.translate
 except AttributeError:
     import string
     _translation = string.maketrans('OIL', '011')
+    _str_translate = string.translate
 
 _validation = re.compile('^[' + _chars + '-' + ']*$')
 
@@ -63,7 +66,7 @@ def random(length, hyphens=-1, crypto=True):
 	shift_bits = (8 * bytes) - bits
 	
 	if crypto:
-		number = int.from_bytes(urandom(bytes), 'big')
+		number = intc.from_bytes(urandom(bytes), 'big')
 	else:
 		number = getrandbits(bytes * 8)
 	
@@ -82,7 +85,7 @@ def normalize(encoded, hyphens=-1):
 	'string' is the string to normalize. ValuefError is raised if there are
 	non-alphabet characters present in the input."""
 	
-	encoded = encoded.upper().translate(_translation)
+	encoded = _str_translate(str(encoded).upper(), _translation)
 	
 	if not _validation.match(encoded):
 		raise ValueError("Non-base32cf digit found")
