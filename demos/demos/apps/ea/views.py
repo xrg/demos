@@ -163,9 +163,11 @@ class CreateView(View):
                         if not election_obj['long_votecodes']:
                             votecode_list = list(range(options))
                             random.shuffle(votecode_list)
+                            vc_type = 'votecode'
                         else:
                             votecode_list=[base32cf.random(config.VOTECODE_LEN,
                                 crypto=False) for _ in range(options)]
+                            vc_type = 'long_votecode'
                         
                         for votecode in votecode_list:
                             
