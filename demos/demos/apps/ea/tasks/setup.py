@@ -39,7 +39,7 @@ from demos.common.utils.permutation import permute
 from demos.common.utils.hashers import PBKDF2Hasher
 
 
-@shared_task(ignore_result=True)
+@shared_task()
 def election_setup(election, election_obj, language):
     
     translation.activate(language)
@@ -394,12 +394,8 @@ def election_setup(election, election_obj, language):
     
     thread_pool.map(api_update1, ['abb', 'vbb', 'bds'])
     
-    # Delete celery task
-    
-    task = Task.objects.get(election_id=election.id)
-    task.delete()
-    
     translation.deactivate()
+    return True
 
 
 @task_failure.connect
