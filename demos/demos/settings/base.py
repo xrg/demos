@@ -46,6 +46,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'kombu.transport.django',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -104,6 +105,18 @@ DATABASES = {
         #'PORT': '',
     }
 }
+
+BROKER_URL = 'amqp://'
+CELERY_RESULT_BACKEND = 'amqp'
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_ACCEPT_CONTENT = ['json', 'msgpack']
+
+if DEVELOPMENT:
+    # Alternative config, only using Django + existing db
+    # Note: introduces dependency on python-SQLAlchemy
+    BROKER_URL = 'django://'
+    CELERY_RESULT_BACKEND='db+postgresql://%(USER)s:%(PASSWORD)s@%(HOST)s:%(PORT)s/%(NAME)s' \
+                                % DATABASES['default']
 
 
 # Internationalization
