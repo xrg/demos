@@ -37,7 +37,7 @@ from demos.common.utils.hashers import PBKDF2Hasher
 from demos.common.utils.json import CustomJSONEncoder
 
 
-@shared_task(ignore_result=True)
+@shared_task()
 def election_setup(election, election_obj, language):
     
     translation.activate(language)
@@ -392,12 +392,8 @@ def election_setup(election, election_obj, language):
     
     thread_pool.map(api_update1, ['abb', 'vbb', 'bds'])
     
-    # Delete celery task
-    
-    task = Task.objects.get(election_id=election.id)
-    task.delete()
-    
     translation.deactivate()
+    return True
 
 
 @task_failure.connect
