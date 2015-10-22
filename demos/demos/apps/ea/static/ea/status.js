@@ -70,15 +70,17 @@ function updateProgress() {
                 progress_bar.children("span").text(value_css);
             }
             
+            state_item.attr('title', data.state_message || '');
+
             var timeout;
-            
+
             if (data.state == state_list.WORKING)
-                timeout = 500;
+                timeout = data.timeout || 500;
             else if (data.state < state_list.WORKING)
                 timeout = 5000;
             else if (data.state > state_list.WORKING)
                 timeout = 15000;
-            
+
             window.setTimeout(updateProgress, timeout);
         },
         error: function(jqXHR, textStatus, errorThrown) {
