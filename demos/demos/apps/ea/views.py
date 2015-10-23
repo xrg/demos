@@ -13,6 +13,7 @@ from django.db import transaction
 from django.core import urlresolvers
 from django.utils import translation, timezone
 from django.shortcuts import render, redirect
+from django.middleware import csrf
 from django.views.generic import View
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
@@ -133,7 +134,7 @@ class CreateView(View):
             if request.is_ajax():
                 
                 q_options_list = [len(question_obj['__list_OptionC__'])
-                    for _question_obj in election_obj['__list_Question__']]
+                    for question_obj in election_obj['__list_Question__']]
                 
                 vc_type = 'votecode' \
                     if not election_obj['long_votecodes'] else 'l_votecode'
@@ -164,7 +165,7 @@ class CreateView(View):
                         }
                         
                         if not election_obj['long_votecodes']:
-                            votecode_list = list(range(options))
+                            votecode_list = list(range(1, options + 1))
                             random.shuffle(votecode_list)
                         else:
                             votecode_list=[base32cf.random(config.VOTECODE_LEN,
@@ -288,6 +289,7 @@ class StatusView(View):
             'State': {state.name: state.value for state in enums.State},
         }
         
+        csrf.get_token(request)
         return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
