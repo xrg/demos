@@ -36,6 +36,7 @@ from demos.common.utils.dbsetup import _prep_kwargs
 from demos.common.utils.json import CustomJSONEncoder
 
 from demos.settings import DEMOS_URL
+from django.utils.translation import ugettext as _
 
 logger = logging.getLogger(__name__)
 app_config = apps.get_app_config('ea')
@@ -317,8 +318,27 @@ class StatusView(View):
             celery = Task.objects.get(election_id=election_id)
             task = AsyncResult(str(celery.task_id))
             
+            # Election is "working", because task is alive
             response['state'] = enums.State.WORKING.value
-            response.update(task.result or {})
+            if task.state == 'PENDING':
+                response['timeout'] = 2000
+                response['state_message'] = _('Pending execution')
+            elif task.state == 'RETRY':
+                response['timeout'] = 2000
+                response['state_message'] = _('Retrying execution')
+            elif task.state == 'Started':
+                response['timeout'] = 500
+                response['state_message'] = _('Running...')
+            elif task.state == 'SUCCESS':
+                response.update(task.result)
+                response['state_message'] = ''
+            elif task.state == 'FAILURE':
+                response['timeout'] = 10000
+                response['state_message'] = _("Task failed: %s") % task.result
+            else:
+                response['timeout'] = 1000
+                response['state_message'] = "State: %r" % task.state
+            
         
         except (ValidationError, Task.DoesNotExist):
             
