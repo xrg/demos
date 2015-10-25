@@ -1,23 +1,45 @@
 # File: enums.py
 
-from enum import IntEnum, unique
+class IntEnumC:
+    def __init__(self,*args):
+        raise RuntimeError("Enum objects shall not be instantiated")
 
+    @classmethod
+    def _check(cls, value):
+        if getattr(cls, '_min', None) is None:
+            vals = []
+            for k, v in cls.__dict__.items():
+                if k.startswith('_') or not isinstance(v, int):
+                    continue
+                vals.append(v)
+            cls._min = min(vals)
+            cls._max = max(vals)
 
-# workaround for python2
+        if not isinstance(value, int):
+            raise ValueError("enum values must be integers")
+        if value < cls._min or value > cls._max:
+            raise ValueError("%s=%d out of range (%d,%d)" % (cls.__name__, value, cls._min, cls._max))
+        return True
 
-import six
+    @classmethod
+    def get_valueitems(cls, prefix=None):
+        if prefix is True:
+            prefix = cls.__name__
 
-if six.PY2:
-    class IntEnum(IntEnum):
-        def __str__(self):
-            return str(int(self))
+        if prefix:
+            prefix += '.'
+        else:
+            prefix = ''
+        ret = {}
+        for k, v in cls.__dict__.items():
+            if k.startswith('_') or not isinstance(v, int):
+                continue
+            ret[prefix + k] = v
 
-# end of workaround
+        return ret
 
+class State(IntEnumC):
 
-@unique
-class State(IntEnum):
-    
     DRAFT = 1
     PENDING = 2
     WORKING = 3
@@ -27,3 +49,4 @@ class State(IntEnum):
     ERROR = 7
     TEMPLATE = 8
 
+#eof
