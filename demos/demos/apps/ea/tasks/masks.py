@@ -37,9 +37,8 @@ _masks = {
      },
 }
 
+
 _mask_list_re = re.compile('^__list_(.+)__$')
-
-
 def _apply_mask(obj, app_mask, model_mask):
     
     result = {}
