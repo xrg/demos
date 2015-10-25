@@ -28,6 +28,10 @@ urlpatterns = []
 if 'django_cas' in settings.INSTALLED_APPS:
     urlpatterns += [url(r'^cas/login/$', 'django_cas.views.login', name='cas_login'),
                     url(r'^cas/logout/$', 'django_cas.views.logout') ]
+else:
+    urlpatterns = [
+        url('^', include('django.contrib.auth.urls'))
+    ]
 
 for iapp in settings.DEMOS_APPS:
     urlconfig = import_module('demos.apps.%s.urls' % iapp)

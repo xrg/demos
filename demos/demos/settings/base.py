@@ -268,7 +268,7 @@ DEMOS_URL = { 'ea': 'https://demos-ea.our-domain.com',
 INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
 LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
 
-if True:
+if False:
     # use CAS for authentication
     INSTALLED_APPS.append('django_cas')
     MIDDLEWARE_CLASSES.append('django_cas.middleware.CASMiddleware')
@@ -279,6 +279,9 @@ if True:
     # CAS_LOGOUT_COMPLETELY = True
     # CAS_IGNORE_REFERER = True
     # CAS_RENEW = False
+else:
+    LOGIN_URL = 'login'
+
 
 # End of demos-specific configuration
 
