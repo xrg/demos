@@ -3,11 +3,12 @@
 from django.conf.urls import patterns, include, url
 from demos.apps.bds import views
 from demos.common.utils import api
+from django.contrib.auth.decorators import login_required
 
 urlpatterns = patterns('',
     
     url(r'^$', views.HomeView.as_view(), name='home'),
-    url(r'^manage/$', views.ManageView.as_view(), name='manage'),
+    url(r'^manage/$', login_required(views.ManageView.as_view()), name='manage'),
 )
 
 apipatterns = [

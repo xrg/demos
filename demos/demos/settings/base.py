@@ -39,17 +39,16 @@ ADMINS = [
 
 # Application definition
 
-INSTALLED_APPS = (
+INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'kombu.transport.django',
-)
+    ]
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -59,7 +58,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-)
+    ]
 
 ROOT_URLCONF = 'demos.urls'
 
@@ -115,6 +114,7 @@ if DEVELOPMENT:
     # Alternative config, only using Django + existing db
     # Note: introduces dependency on python-SQLAlchemy
     BROKER_URL = 'django://'
+    INSTALLED_APPS.append('kombu.transport.django')
     CELERY_RESULT_BACKEND='db+postgresql://%(USER)s:%(PASSWORD)s@%(HOST)s:%(PORT)s/%(NAME)s' \
                                 % DATABASES['default']
 
@@ -265,8 +265,20 @@ DEMOS_URL = { 'ea': 'https://demos-ea.our-domain.com',
              'abb': 'https://demos-abb.our-domain.com',
              'vbb': 'https://demos-vbb.our-domain.com', }
 
-INSTALLED_APPS += tuple([ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ])
+INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
 LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
+
+if True:
+    # use CAS for authentication
+    INSTALLED_APPS.append('django_cas')
+    MIDDLEWARE_CLASSES.append('django_cas.middleware.CASMiddleware')
+    LOGIN_URL = 'cas_login'
+    CAS_SERVER_URL = 'https://login-devel.uoa.gr/'
+    CAS_SERVER_SSL_VERIFY = False
+    CAS_RETRY_LOGIN = False
+    # CAS_LOGOUT_COMPLETELY = True
+    # CAS_IGNORE_REFERER = True
+    # CAS_RENEW = False
 
 # End of demos-specific configuration
 
