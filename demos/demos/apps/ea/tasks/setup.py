@@ -10,8 +10,8 @@ import random
 import hashlib
 import tarfile
 
-from base64 import b64encode
 from functools import partial
+
 try:
     from itertools import zip_longest
 except ImportError:
@@ -19,24 +19,22 @@ except ImportError:
 
 from multiprocessing.pool import ThreadPool
 
-from google.protobuf import message
-
 from django.apps import apps
 from django.utils import translation
-from django.core.serializers.json import DjangoJSONEncoder
 
 from billiard.pool import Pool
 
 from celery import shared_task, current_task
 from celery.signals import worker_process_init, task_failure
 
-from demos.apps.ea.tasks import crypto, pdf
+from demos.apps.ea.tasks import cryptotools, pdf
 from demos.apps.ea.tasks.masks import apply_mask
 from demos.apps.ea.models import Election, Task, RemoteUser
 
 from demos.common.utils import api, base32cf, config, dbsetup, enums, intc
 from demos.common.utils.permutation import permute
 from demos.common.utils.hashers import PBKDF2Hasher
+from demos.common.utils.json import CustomJSONEncoder
 
 
 @shared_task(ignore_result=True)
@@ -84,7 +82,7 @@ def election_setup(election, election_obj, language):
         if options > max_options:
             max_options = options
             
-        question_obj['key'] = crypto.gen_key(election.ballots, options)
+        question_obj['key'] = cryptotools.gen_key(election.ballots, options)
     
     # Populate local and remote databases
     
@@ -453,7 +451,7 @@ def crypto_gen(ballots, q_list, number):
     # ballots of parts of crypto elements to a list of ballots of parts of
     # questions of crypto elements!
     
-    crypto_list = [crypto.gen_ballot(key, ballots, options, number) \
+    crypto_list = [cryptotools.gen_ballot(key, ballots, options, number) \
         for key, options in q_list]
     
     return zip(*[iter([j for i in zip(*crypto_list) for j in zip(*i)])] * 2)
@@ -467,17 +465,4 @@ def ballot_gen(ballot_obj, builder):
     pdfbuf = builder.pdfgen(ballot_obj)
     
     return (serial, pdfbuf)
-
-
-class CustomJSONEncoder(DjangoJSONEncoder):
-    """JSONEncoder subclass that supports date/time and protobuf types."""
-    
-    def default(self, o):
-        
-        if isinstance(o, message.Message):
-            r = o.SerializeToString()
-            r = b64encode(r).decode('ascii')
-            return r
-        
-        return super(CustomJSONEncoder, self).default(o)
 
