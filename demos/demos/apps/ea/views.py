@@ -298,7 +298,7 @@ class StatusView(View):
             'abb_url': abb_url,
             'bds_url': bds_url,
             'election': election,
-            'State': {state.name: state.value for state in enums.State},
+            'State': enums.State.get_valueitems(),
         }
         
         csrf.get_token(request)
@@ -319,7 +319,7 @@ class StatusView(View):
             task = AsyncResult(str(celery.task_id))
             
             # Election is "working", because task is alive
-            response['state'] = enums.State.WORKING.value
+            response['state'] = enums.State.WORKING
             if task.state == 'PENDING':
                 response['timeout'] = 2000
                 response['state_message'] = _('Pending execution')
@@ -346,13 +346,13 @@ class StatusView(View):
                 
                 election = Election.objects.get(id=election_id)
                 
-                if election.state.value == enums.State.RUNNING.value:
+                if election.state == enums.State.RUNNING:
                     if timezone.now() < election.start_datetime:
                         response['not_started'] = True
                     elif timezone.now() > election.end_datetime:
                         response['ended'] = True
                 
-                response['state'] = election.state.value        
+                response['state'] = election.state
             
             except (ValidationError, Election.DoesNotExist):
                 return http.HttpResponse(status=422)
