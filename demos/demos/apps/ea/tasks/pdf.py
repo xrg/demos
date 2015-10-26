@@ -1,5 +1,7 @@
 # File: pdf.py
 
+from __future__ import division
+
 import math
 
 from os import path
@@ -24,6 +26,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, \
 
 from demos.common.utils import base32cf, config
 from demos.settings import DEMOS_URL
+
 
 
 class BallotBuilder:
@@ -156,11 +159,11 @@ class BallotBuilder:
     font_lg = 14
     
     spacer = 7.5
-    cell_padding = 12
+    cell_padding = 12.0
     
     page_width, page_height = pagesize
-    page_width -= w_margin * 2
-    page_height -= h_margin * 2
+    page_width -= w_margin * 2.0
+    page_height -= h_margin * 2.0
     
     img_size = int(page_width // 4.5)
     font_size_tag = int(img_size)
@@ -170,7 +173,7 @@ class BallotBuilder:
     table_opt_gap = int(page_width // 50)
     
     long_vc_split = 4
-    long_vc_hyphens = int(math.ceil(config.VOTECODE_LEN / long_vc_split)) - 1
+    long_vc_hyphens = int(math.ceil(float(config.VOTECODE_LEN) / long_vc_split)) - 1
     
     # TrueType fonts
     
@@ -339,7 +342,7 @@ class BallotBuilder:
             self.sans_bold, self.font_lg)]) + self.cell_padding
         
         self.top_value_width = (self.page_width -
-            (2 * self.top_text_width + self.table_top_gap)) / 2
+            (2.0 * self.top_text_width + self.table_top_gap)) / 2.0
         
         self.vc_width = max([stringWidth(self.vc_text, self.sans_bold,
             self.font_sm), max([stringWidth(c, self.mono_regular, self.font_sm)
@@ -386,15 +389,14 @@ class BallotBuilder:
             empty = self.page_width - (opt_width + vc_width + rec_width)
             
             if two_columns:
-                empty -= (self.page_width + self.table_opt_gap) / 2
+                empty -= (self.page_width + self.table_opt_gap) / 2.0
             
             # Share whitespace between options, votecodes and receipts
             
             if(empty > 0):
-                
-                opt_width += empty / 3
-                vc_width  += empty / 3
-                rec_width += empty / 3
+                opt_width += empty / 3.0
+                vc_width  += empty / 3.0
+                rec_width += empty / 3.0
             
             # Truncate long options to fit in the table
             
@@ -620,7 +622,7 @@ class BallotBuilder:
                         frst = int(row // 2)
                         last = int(2*frst+opt_rows - (2*frst+opt_rows)//2)
                         
-                        t = int(math.ceil(data_len/2))
+                        t = int(math.ceil(data_len/2.0))
                         
                         optionv1 = data_list[frst: last]
                         
