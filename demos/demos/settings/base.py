@@ -198,7 +198,11 @@ LOGGING = {
         'demos': {
             'handlers': ['mail_admins', 'syslog'],
             'level': 'INFO',
-        }
+        },
+        'django_cas': {
+             'handlers': ['syslog',],
+             'level': 'DEBUG',
+            },
     },
 }
 
@@ -284,6 +288,11 @@ if False:
     # CAS_LOGOUT_COMPLETELY = True
     # CAS_IGNORE_REFERER = True
     # CAS_RENEW = False
+
+    AUTHENTICATION_BACKENDS = (
+        'django.contrib.auth.backends.ModelBackend',
+        'django_cas.backends.CASBackend',
+        )
 else:
     LOGIN_URL = 'login'
 
