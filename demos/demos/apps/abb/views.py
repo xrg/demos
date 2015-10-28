@@ -202,7 +202,7 @@ class ResultsView(View):
             'election': election,
             'questions': questions,
             'participants': str(participants),
-            'State': { s.name: s.value for s in enums.State },
+            'State': enums.State.get_valueitems(),
         }
         
         csrf.get_token(request)
