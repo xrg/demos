@@ -2,6 +2,9 @@
 
 import socket
 from demos.common.utils import crypto, config, intc
+import logging
+
+log = logging.getLogger('demos.cryptotools')
 
 
 def gen_key(ballots, options):
@@ -90,8 +93,13 @@ def _request_to_response(request, response_oneof):
     sock = socket.socket(af)
     
     sock.settimeout(config.RECV_TIMEOUT)
-    sock.connect(config.CRYPTO_ADDR)
-    
+    assert config.CRYPTO_ADDR, "No address configured"
+    try:
+        sock.connect(config.CRYPTO_ADDR)
+    except Exception, e:
+        log.exception("Failed to connect to %s: %s", config.CRYPTO_ADDR, e)
+        raise
+
     sock.sendall(size + data)
     sock.shutdown(socket.SHUT_WR)
     
@@ -128,3 +136,4 @@ def _recvall(sock, bufsize):
     
     return buf
 
+# eof
