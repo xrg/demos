@@ -216,68 +216,78 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_SECONDS = 31536000
 
 
-## Demos-specific configuration:
+# Demos-specific configuration
 
 DEMOS_CONFIG = {
 
-        'ea': {
-                # Election configuration
-                'MAX_BALLOTS': 100000,
-                'MAX_OPTIONS': 128,
-                'MAX_TRUSTEES': 128,
-                'MAX_QUESTIONS': 32,
+    'ea': {
 
-                # demos-crypto connection settings, see:
-                # https://docs.python.org/3/library/socket.html
-                'CRYPTO_AF': 'AF_UNIX',
-                                            # e.g.: 'AF_UNIX' or 'AF_INET' or 'AF_INET6'
-                'CRYPTO_ADDR': os.path.expanduser('/tmp/demos-crypto.sock'),
-                                            # e.g.: '/tmp/demos.sock' or ('127.0.0.1', 8999)
+        # Election configuration
+        'MAX_BALLOTS': 100000,
+        'MAX_OPTIONS': 128,
+        'MAX_TRUSTEES': 128,
+        'MAX_QUESTIONS': 32,
 
-                # Performance settings, they affect CPU and RAM usage, etc
-                'BATCH_SIZE': 128,
+        # demos-crypto connection parameters, see:
+        # https://docs.python.org/3/library/socket.html
+        # CRYPTO_AF: e.g. 'AF_UNIX' or 'AF_INET' or 'AF_INET6'
+        # CRYPTO_ADDR: e.g. '/tmp/demos-crypto.sock' or ('127.0.0.1', 8999)
+        'CRYPTO_AF': 'AF_UNIX',
+        'CRYPTO_ADDR': '/tmp/demos-crypto.sock',
 
-                'RECV_MAX': 67108864,   # 64 MB
-                'RECV_TIMEOUT': 900,   # 15 mins
-                
-                # Certificate Authority (X.509 / RSA)
-                'CA_CERT_PEM': os.path.expanduser('~/ca/cacert.pem'),
-                'CA_PKEY_PEM': os.path.expanduser('~/ca/private/cakey.pem'),
-                'CA_PKEY_PASSPHRASE': NO_PASSPHRASE_DEFINED,
-        },
+        # Performance settings, they affect CPU and RAM usage, etc
 
-        'bds': {
-                # Absolute filesystem path to the directory that will hold tar files.
-                # They are used to organize PDF ballot files by their election ID.
-                'TARSTORAGE_ROOT': os.path.expanduser('~/bds/elections'),
+        'BATCH_SIZE': 128,
 
-                # URL that handles the files served from TARSTORAGE_ROOT. If this is
-                # None, files will not be accessible via an URL.
-                'TARSTORAGE_URL': None,
+        'RECV_MAX': 67108864,   # 64 MB
+        'RECV_TIMEOUT': 900,   # 15 mins
 
-                # The numeric mode (i.e. 0x644) to set root tar files to. If this is
-                # None, you’ll get operating-system dependent behavior.
-                'TARSTORAGE_PERMISSIONS': None,
-        },
+        # Certificate Authority (X.509 / RSA)
+        'CA_CERT_PEM': os.path.expanduser('~/ca/cacert.pem'),
+        'CA_PKEY_PEM': os.path.expanduser('~/ca/private/cakey.pem'),
+        'CA_PKEY_PASSPHRASE': NO_PASSPHRASE_DEFINED,
+    },
 
-        'abb': {
-        },
+    'bds': {
 
-        'vbb': {
-        },
+        # Absolute filesystem path to the directory that will hold tar files.
+        # They are used to organize PDF ballot files by their election ID.
+        'TARSTORAGE_ROOT': os.path.expanduser('~/bds/elections'),
+
+        # URL that handles the files served from TARSTORAGE_ROOT. If this is
+        # None, files will not be accessible via an URL.
+        'TARSTORAGE_URL': None,
+
+        # The numeric mode (i.e. 0o644) to set root tar files to. If this is
+        # None, you’ll get operating-system dependent behavior.
+        'TARSTORAGE_PERMISSIONS': None,
+    },
+
+    'abb': {
+
+        # Performance settings, they affect CPU and RAM usage, etc
+        'BATCH_SIZE': 128,
+    },
+
+    'vbb': {
+    },
 }
 
-DEMOS_APPS = NO_APP_CHOSEN # one or more of: ea, bds, abb, vbb
+DEMOS_APPS = NO_APP_CHOSEN   # one or more of: ea, bds, abb, vbb
 
-DEMOS_URL = { 'ea': 'https://demos-ea.our-domain.com',
-             'bds': 'https://demos-bds.our-domain.com',
-             'abb': 'https://demos-abb.our-domain.com',
-             'vbb': 'https://demos-vbb.our-domain.com', }
+DEMOS_URL = {
+    'ea': 'https://demos-ea.our-domain.com',
+    'bds': 'https://demos-bds.our-domain.com',
+    'abb': 'https://demos-abb.our-domain.com',
+    'vbb': 'https://demos-vbb.our-domain.com',
+}
 
-DEMOS_API_URL = { 'ea': 'https://api.demos-ea.our-domain.com',
-                 'bds': 'https://api.demos-bds.our-domain.com',
-                 'abb': 'https://api.demos-abb.our-domain.com',
-                 'vbb': 'https://api.demos-vbb.our-domain.com', }
+DEMOS_API_URL = {
+    'ea': 'https://api.demos-ea.our-domain.com',
+    'bds': 'https://api.demos-bds.our-domain.com',
+    'abb': 'https://api.demos-abb.our-domain.com',
+    'vbb': 'https://api.demos-vbb.our-domain.com',
+}
 
 INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
 LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
