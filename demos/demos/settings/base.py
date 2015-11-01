@@ -242,10 +242,10 @@ DEMOS_CONFIG = {
         'RECV_MAX': 67108864,   # 64 MB
         'RECV_TIMEOUT': 900,   # 15 mins
 
-        # Certificate Authority (X.509 / RSA)
-        'CA_CERT_PEM': os.path.expanduser('~/ca/cacert.pem'),
-        'CA_PKEY_PEM': os.path.expanduser('~/ca/private/cakey.pem'),
-        'CA_PKEY_PASSPHRASE': NO_PASSPHRASE_DEFINED,
+        # Certificate Authority (X.509 / RSA) used to sign election ballot receipts
+        'CA_CERT_PEM': False, # os.path.expanduser('~/ca/cacert.pem'),
+        'CA_PKEY_PEM': False, # os.path.expanduser('~/ca/private/cakey.pem'),
+        'CA_PKEY_PASSPHRASE': 'BAD_PASSPHRASE',
     },
 
     'bds': {

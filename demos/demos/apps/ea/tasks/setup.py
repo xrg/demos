@@ -9,6 +9,7 @@ import time
 import random
 import hashlib
 import tarfile
+import logging
 
 from base64 import b64encode
 from OpenSSL import crypto
@@ -40,6 +41,7 @@ from demos.common.utils.permutation import permute
 from demos.common.utils.hashers import PBKDF2Hasher
 from demos.common.utils.json import CustomJSONEncoder
 
+log = logging.getLogger('demos.ea.setup')
 
 @shared_task()
 def election_setup(election_obj, language):
@@ -83,12 +85,16 @@ def election_setup(election_obj, language):
     
     # Load CA's X.509 certificate and private key
     
-    with open(config.CA_CERT_PEM, 'r') as ca_file:
-        ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, ca_file.read())
-    
-    with open(config.CA_PKEY_PEM, 'r') as ca_file:
-        ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, ca_file.read(), \
-            force_bytes(config.CA_PKEY_PASSPHRASE))
+    if config.CA_CERT_PEM and config.CA_PKEY_PEM:
+        with open(config.CA_CERT_PEM, 'r') as ca_file:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, ca_file.read())
+        
+        with open(config.CA_PKEY_PEM, 'r') as ca_file:
+            ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, ca_file.read(), \
+                force_bytes(config.CA_PKEY_PASSPHRASE))
+    else:
+        log.warning("No CA configured, generating unsigned ballot")
+        ca_cert = ca_pkey = None
     
     # Generate a new RSA key pair
     
@@ -113,11 +119,13 @@ def election_setup(election_obj, language):
     cert.set_serial_number(base32cf.decode(election.id))
     cert.set_notBefore(election.start_datetime.strftime('%Y%m%d%H%M%S%z'))
     cert.set_notAfter(election.end_datetime.strftime('%Y%m%d%H%M%S%z'))
-    cert.set_issuer(ca_cert.get_subject())
-    cert.set_subject(ca_cert.get_subject())
+    if ca_cert:
+        cert.set_issuer(ca_cert.get_subject())
+        cert.set_subject(ca_cert.get_subject())
     cert.get_subject().CN = election.title[:64]
     cert.set_pubkey(pkey)
-    cert.sign(ca_pkey, 'sha256')
+    if ca_pkey:
+        cert.sign(ca_pkey, 'sha256')
     
     election_obj['x509_cert'] = \
         crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode()
