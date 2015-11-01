@@ -326,15 +326,21 @@ class StatusView(View):
             elif task.state == 'RETRY':
                 response['timeout'] = 2000
                 response['state_message'] = _('Retrying execution')
-            elif task.state == 'Started':
+            elif task.state == 'STARTED':
                 response['timeout'] = 500
                 response['state_message'] = _('Running...')
+                if isinstance(task.result, dict):
+                    response.update(task.result)
             elif task.state == 'SUCCESS':
-                response.update(task.result)
+                if isinstance(task.result, dict):
+                    response.update(task.result)
+                elif task.result is True:
+                    response.update(current=100, total=100, state=enums.State.COMPLETED)
                 response['state_message'] = ''
             elif task.state == 'FAILURE':
                 response['timeout'] = 10000
                 response['state_message'] = _("Task failed: %s") % task.result
+                response['state'] = enums.State.ERROR
             else:
                 response['timeout'] = 1000
                 response['state_message'] = "State: %r" % task.state
