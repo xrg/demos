@@ -233,7 +233,7 @@ DEMOS_CONFIG = {
         # CRYPTO_AF: e.g. 'AF_UNIX' or 'AF_INET' or 'AF_INET6'
         # CRYPTO_ADDR: e.g. '/tmp/demos-crypto.sock' or ('127.0.0.1', 8999)
         'CRYPTO_AF': 'AF_UNIX',
-        'CRYPTO_ADDR': '/tmp/demos-crypto.sock',
+        'CRYPTO_ADDR': '/run/demos-voting/demos-crypto.sock',
 
         # Performance settings, they affect CPU and RAM usage, etc
 
