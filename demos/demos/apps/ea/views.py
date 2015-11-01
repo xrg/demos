@@ -335,7 +335,7 @@ class StatusView(View):
                 if isinstance(task.result, dict):
                     response.update(task.result)
                 elif task.result is True:
-                    response.update(current=100, total=100, state=enums.State.COMPLETED)
+                    response.update(current=100, total=100, state=enums.State.RUNNING)
                 response['state_message'] = ''
             elif task.state == 'FAILURE':
                 response['timeout'] = 10000
