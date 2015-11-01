@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 
 urlpatterns = patterns('',
     url(r'^$', views.HomeView.as_view(), name='home'),
-    url(r'^manage/(?P<election_id>[A-Za-z0-9])/$', login_required(views.ManageView.as_view()), name='manage'),
+    url(r'^manage/(?P<election_id>[A-Za-z0-9]+)/$', login_required(views.ManageView.as_view()), name='manage'),
 )
 
 apipatterns = [
