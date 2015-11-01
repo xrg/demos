@@ -29,8 +29,9 @@
                 <p>{% trans "Unable to fetch election state, retrying..." %}</p>
             </div>
             
-            <div class="alert alert-dnager fade in hidden" role="alert">
+            <div class="alert alert-danger fade in hidden" role="alert">
                 <p>{% trans "The election was stopped due to a fatal error." %}</p>
+                <p id="alert-message"></p>
             </div>
             
             <div class="list-group">

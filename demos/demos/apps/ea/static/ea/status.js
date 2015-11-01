@@ -38,6 +38,8 @@ function updateProgress() {
             
             if (data.state == state_list.ERROR) {
                 $(".alert-danger").removeClass("hidden");
+                if (data.state_message)
+                    $("#alert-message").text(data.state_message);
                 return;
             }
             
