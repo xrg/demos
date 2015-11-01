@@ -508,7 +508,7 @@ class UpdateStateView(View):
             e_id = data['e_id']
             election = Election.objects.get(id=e_id)
             
-            state = enums.State(int(data['state']))
+            state = int(data['state'])
             
             # All servers can set state to ERROR, except for abb which can
             # also set it to COMPLETED, only if the election has ended.
@@ -522,7 +522,7 @@ class UpdateStateView(View):
                 
                 raise Exception('User \'%s\' tried to set election state to '
                     '\'%s\', but current state is \'%s\'.' \
-                    % (username, state.name, election.state.name))
+                    % (username, state, election.state))
             
             # Update election state
             
