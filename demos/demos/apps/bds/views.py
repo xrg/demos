@@ -41,7 +41,8 @@ class ManageView(View):
     template_name = 'bds/manage.html'
     
     def get(self, request, election_id):
-        f = http.FileResponse(open(config.TARSTORAGE_ROOT + '/' + election_id + '.tar', 'rb'), content_type='application/force-download')
+        
+        f = http.FileResponse(open(config.BALLOT_ROOT + '/' + election_id + '.tar', 'rb'), content_type='application/force-download')
         f['Content-Disposition'] = 'attachment; filename=%s' % election_id+'.tar'
         return f
 
