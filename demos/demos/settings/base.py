@@ -14,6 +14,9 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# all writable files may have this as a reference
+SPOOL_DIR = '/var/spool/demos-voting' # or os.path.dirname(BASE_DIR) in development
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -154,7 +157,7 @@ STATICFILES_DIRS = [
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
 
-MEDIA_ROOT = '/var/spool/demos-voting/media'
+MEDIA_ROOT = os.path.join(SPOOL_DIR, 'media')
 
 
 # Sending email
@@ -251,13 +254,13 @@ DEMOS_CONFIG = {
         # Absolute filesystem path to the directory that will hold
         # RSA private-public key pairs (PEM file format)
 
-        'PKEY_ROOT': os.path.join(os.path.dirname(BASE_DIR), 'data/pkeys'),
+        'PKEY_ROOT': os.path.join(SPOOL_DIR, 'data/pkeys'),
     },
     'bds': {
 
         # Absolute filesystem path to the directory that will hold
         # ballots (TAR file format)
-        'BALLOT_ROOT': os.path.join(os.path.dirname(BASE_DIR), 'data/ballots'),
+        'BALLOT_ROOT': os.path.join(SPOOL_DIR, 'data/ballots'),
     },
 
     'abb': {
@@ -265,7 +268,7 @@ DEMOS_CONFIG = {
         # Absolute filesystem path to the directory that will hold
         # X.509 certificates (PEM file format)
         
-        'CERT_ROOT': os.path.join(os.path.dirname(BASE_DIR), 'data/certs'),
+        'CERT_ROOT': os.path.join(SPOOL_DIR, 'data/certs'),
 
         # Performance settings, they affect CPU and RAM usage, etc
         'BATCH_SIZE': 128,
