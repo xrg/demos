@@ -30,11 +30,11 @@ class TarFileStorage(Storage):
         # Absolute filesystem path to the directory that will hold tar files.
         
         if location is None:
-            location = settings.TARSTORAGE_ROOT
+            location = settings.SPOOL_DIR
         
         self.location = location
         
-        # URL that handles the files served from TARSTORAGE_ROOT. If this is
+        # URL that handles the files served from `location`. If this is
         # None, files will not be accessible via an URL.
         
         if base_url is None:
