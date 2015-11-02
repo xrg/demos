@@ -2,11 +2,15 @@
 
 from __future__ import division
 
-import socket
-from demos.common.utils import crypto, config, intc
 import logging
+import socket
+
+from demos.common.utils import crypto, intc
+from demos.common.utils.config import registry
+
 
 log = logging.getLogger('demos.cryptotools')
+config = registry.get_config('ea')
 
 
 def gen_key(ballots, options):
