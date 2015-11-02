@@ -291,6 +291,10 @@ DEMOS_API_URL = {
     'vbb': 'https://api.demos-vbb.our-domain.com',
 }
 
+# In case the above API URLs have SSL, and only self-signed certificates,
+# you can disable the verification below, to allow Requests among servers
+# DEMOS_API_VERIFY = True       # the default
+
 INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
 LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
 
