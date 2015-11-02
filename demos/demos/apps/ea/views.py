@@ -311,7 +311,7 @@ class StatusView(View):
         if election_id is None:
             return http.HttpResponseNotAllowed(['GET'])
         
-        response = {}
+        response = {'state_message': ''}
         
         try: # Return election creation progress
             
@@ -320,6 +320,8 @@ class StatusView(View):
             
             # Election is "working", because task is alive
             response['state'] = enums.State.WORKING
+            if isinstance(task.result, dict):
+                response.update(task.result)
             if task.state == 'PENDING':
                 response['timeout'] = 2000
                 response['state_message'] = _('Pending execution')
@@ -329,14 +331,9 @@ class StatusView(View):
             elif task.state == 'STARTED':
                 response['timeout'] = 500
                 response['state_message'] = _('Running...')
-                if isinstance(task.result, dict):
-                    response.update(task.result)
             elif task.state == 'SUCCESS':
-                if isinstance(task.result, dict):
-                    response.update(task.result)
-                elif task.result is True:
+                if task.result is True:
                     response.update(current=100, total=100, state=enums.State.RUNNING)
-                response['state_message'] = ''
             elif task.state == 'FAILURE':
                 response['timeout'] = 10000
                 response['state_message'] = _("Task failed: %s") % task.result
@@ -344,7 +341,6 @@ class StatusView(View):
             else:
                 response['timeout'] = 1000
                 response['state_message'] = "State: %r" % task.state
-            
         
         except (ValidationError, Task.DoesNotExist):
             

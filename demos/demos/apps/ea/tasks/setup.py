@@ -468,7 +468,7 @@ def election_setup(election_obj, language):
     thread_pool.map(api_update1, ['abb', 'vbb', 'bds'])
     
     translation.deactivate()
-    return True
+    return progress
 
 
 @task_failure.connect
