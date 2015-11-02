@@ -332,8 +332,9 @@ class StatusView(View):
                 response['timeout'] = 500
                 response['state_message'] = _('Running...')
             elif task.state == 'SUCCESS':
+                response['state'] = enums.State.RUNNING
                 if task.result is True:
-                    response.update(current=100, total=100, state=enums.State.RUNNING)
+                    response.update(current=100, total=100)
             elif task.state == 'FAILURE':
                 response['timeout'] = 10000
                 response['state_message'] = _("Task failed: %s") % task.result
