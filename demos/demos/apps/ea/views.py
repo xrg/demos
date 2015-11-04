@@ -241,7 +241,7 @@ class CreateView(View):
                 task = election_setup.s(election_obj, language)
                 task.freeze()
                 
-                Task.objects.create(election_id=election_id, task_id=task.id)
+                Task.objects.create(election=election, task_id=task.id)
                 task.apply_async()
                 
                 # Redirect to status page
@@ -317,7 +317,9 @@ class StatusView(View):
         
         try: # Return election creation progress
             
-            celery = Task.objects.get(election_id=election_id)
+            election = Election.objects.get(id=election_id)
+            
+            celery = Task.objects.get(election=election)
             task = AsyncResult(str(celery.task_id))
             
             # Election is "working", because task is alive
@@ -345,22 +347,20 @@ class StatusView(View):
                 response['timeout'] = 1000
                 response['state_message'] = "State: %r" % task.state
         
-        except (ValidationError, Task.DoesNotExist):
+        except Task.DoesNotExist:
             
-            try: # Return election state or invalid
-                
-                election = Election.objects.get(id=election_id)
-                
-                if election.state == enums.State.RUNNING:
-                    if timezone.now() < election.start_datetime:
-                        response['not_started'] = True
-                    elif timezone.now() > election.end_datetime:
-                        response['ended'] = True
-                
-                response['state'] = election.state
+            # Return election state or invalid
             
-            except (ValidationError, Election.DoesNotExist):
-                return http.HttpResponse(status=422)
+            if election.state == enums.State.RUNNING:
+                if timezone.now() < election.start_datetime:
+                    response['not_started'] = True
+                elif timezone.now() > election.end_datetime:
+                    response['ended'] = True
+            
+            response['state'] = election.state
+        
+        except (ValidationError, Election.DoesNotExist):
+            return http.HttpResponse(status=422)
         
         return http.JsonResponse(response)
 
