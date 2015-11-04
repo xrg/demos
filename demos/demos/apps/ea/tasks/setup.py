@@ -22,14 +22,13 @@ try:
 except ImportError:
     from itertools import izip_longest as zip_longest
 
+from billiard.pool import Pool
 from multiprocessing.pool import ThreadPool
 
 from django.apps import apps
 from django.utils import translation
 from django.core.files import File
 from django.utils.encoding import force_bytes
-
-from billiard.pool import Pool
 
 from celery import shared_task, current_task
 from celery.signals import worker_process_init, task_failure
@@ -38,14 +37,14 @@ from demos.apps.ea.tasks import cryptotools, pdf
 from demos.apps.ea.tasks.masks import apply_mask
 from demos.apps.ea.models import Election, Task
 
-from demos.common.utils import api, base32cf, dbsetup, enums, intc
-from demos.common.utils.permutation import permute
-from demos.common.utils.hashers import PBKDF2Hasher
+from demos.common.utils import api, base32cf, dbsetup, enums, hashers, intc
 from demos.common.utils.json import CustomJSONEncoder
 from demos.common.utils.config import registry
+from demos.common.utils.permutation import permute
 
 log = logging.getLogger('demos.ea.setup')
 config = registry.get_config('ea')
+hasher = hashers.PBKDF2Hasher()
 
 @shared_task()
 def election_setup(election_obj, language):
@@ -72,9 +71,7 @@ def election_setup(election_obj, language):
     
     # Initialize common utilities
     
-    hasher = PBKDF2Hasher()
     rand = random.SystemRandom()
-    
     builder = pdf.BallotBuilder(election_obj)
     
     process_pool = Pool()
