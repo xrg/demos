@@ -252,11 +252,6 @@ DEMOS_CONFIG = {
         'CA_PKEY_PEM': False, # os.path.expanduser('~/ca/private/cakey.pem'),
         'CA_PKEY_PASSPHRASE': 'BAD_PASSPHRASE',
 
-
-        # Absolute filesystem path to the directory that will hold
-        # RSA private-public key pairs (PEM file format)
-
-        'PKEY_ROOT': os.path.join(SPOOL_DIR, 'ea/pkeys'),
     },
     'bds': {
 
