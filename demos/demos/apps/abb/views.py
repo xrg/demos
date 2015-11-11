@@ -121,7 +121,7 @@ class AuditView(View):
                 'Ballot__serial': ballot.serial,
             }
             
-            url = reverse('abb-api:export:election:ballot:get', kwargs=url_args)
+            url = reverse('abb-api:export:election:ballot:data', kwargs=url_args)
             
             # Common values
             
@@ -530,7 +530,7 @@ class ExportView(View):
             urlpatterns = [url(r'^' + node['name'] + 's/', include([
                 url(r'^$', ExportView.as_view(), name='schema'),
                 url(r'^' + argpath + '/', include([
-                    url(r'^$', ExportView.as_view(), name='export'),
+                    url(r'^$', ExportView.as_view(), name='data'),
                 ] + urlpatterns)),
             ], namespace=ns))]
             
@@ -566,7 +566,7 @@ class ExportView(View):
         
         # Build and return the requested data
         
-        if url_name == 'export':
+        if url_name == 'data':
             
             def _build_data(ns, objects, kwflds):
                 
@@ -756,7 +756,7 @@ class ExportView(View):
         
         filefield = self._namespace_root[namespaces[0]].get('cache_filefield')
         
-        if len(namespaces) == 1 and filefield and url_name == 'export':
+        if len(namespaces) == 1 and filefield and url_name == 'data':
             return self._export_file(ns, url_args, filefield, node['name'])
         
         # Export the requested data
