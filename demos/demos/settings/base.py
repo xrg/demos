@@ -14,9 +14,6 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# all writable files may have this as a reference
-SPOOL_DIR = '/var/spool/demos-voting'
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -28,12 +25,6 @@ SECRET_KEY = NO_SECRET_KEY_DEFINED
 DEBUG = False
 DEVELOPMENT = False      # would turn off security, enable DEBUG
 
-if DEVELOPMENT:
-     SPOOL_DIR = os.path.join(os.path.dirname(BASE_DIR), 'data')
-
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-
 ALLOWED_HOSTS = [
     '',
 ]
@@ -41,6 +32,14 @@ ALLOWED_HOSTS = [
 ADMINS = [
     ('Root', 'root@localhost'),
 ]
+
+
+# All writable files may have this as a reference
+
+SPOOL_DIR = '/var/spool/demos-voting'
+
+if DEVELOPMENT:
+    SPOOL_DIR = os.path.join(os.path.dirname(BASE_DIR), 'data')
 
 
 # Application definition
@@ -143,8 +142,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_L10N = True
 
-DATETIME_FORMAT = 'l, j F Y, h:i a'
-
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'common/locale'),
 ]
@@ -159,8 +156,6 @@ STATICFILES_DIRS = [
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
-
-MEDIA_ROOT = os.path.join(SPOOL_DIR, 'media')
 
 
 # Sending email
@@ -214,12 +209,15 @@ LOGGING = {
 
 
 # Security Middleware
-# https://docs.djangoproject.com/en/1.8/ref/middleware/#module-django.contrib.messages.middleware
+# https://docs.djangoproject.com/en/1.8/ref/middleware/#module-django.middleware.security
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_SECONDS = 31536000
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 
 # Demos-specific configuration
@@ -257,13 +255,13 @@ DEMOS_CONFIG = {
         # Absolute filesystem path to the directory that will hold
         # RSA private-public key pairs (PEM file format)
 
-        'PKEY_ROOT': os.path.join(SPOOL_DIR, 'pkeys'),
+        'PKEY_ROOT': os.path.join(SPOOL_DIR, 'ea/pkeys'),
     },
     'bds': {
 
         # Absolute filesystem path to the directory that will hold
         # ballots (TAR file format)
-        'BALLOT_ROOT': os.path.join(SPOOL_DIR, 'ballots'),
+        'BALLOT_ROOT': os.path.join(SPOOL_DIR, 'bds/ballots'),
     },
 
     'abb': {
@@ -271,7 +269,7 @@ DEMOS_CONFIG = {
         # Absolute filesystem path to the directory that will hold
         # X.509 certificates (PEM file format)
         
-        'CERT_ROOT': os.path.join(SPOOL_DIR, 'certs'),
+        'CERT_ROOT': os.path.join(SPOOL_DIR, 'abb/certs'),
 
         # Performance settings, they affect CPU and RAM usage, etc
         'BATCH_SIZE': 128,
@@ -331,14 +329,10 @@ else:
 
 if DEVELOPMENT:
     DEBUG = True
-
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
-
+    
     TEMPLATES[0]['APP_DIRS'] = True
     del TEMPLATES[0]['OPTIONS']['loaders']
-
-
+    
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -371,12 +365,15 @@ if DEVELOPMENT:
             },
         }
     }
-
+    
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
+    
     SECURE_BROWSER_XSS_FILTER = False
     SECURE_CONTENT_TYPE_NOSNIFF = False
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_SECONDS = 0
+
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
 
 #eof
