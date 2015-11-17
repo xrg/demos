@@ -21,16 +21,17 @@ def tar_storage_check(app_configs, **kwargs):
 
     import tempfile
     import os
+    import os.path
 
     try:
-        fd, path = tempfile.mkstemp(dir=config.BALLOT_ROOT)
+        fd, path = tempfile.mkstemp(dir=os.path.join(config.FILESYSTEM_ROOT, 'ballots'))
         os.close(fd)
         os.unlink(path)
         
         return []
     except Exception as e:
-        return [_checks.Error("Tar storage \"%s\" check failed: %s" % \
-                                (config.BALLOT_ROOT, e),
+        return [_checks.Error("Tar storage \"%s/ballots\" check failed: %s" % \
+                                (config.FILESYSTEM_ROOT, e),
                               hint="Check that directory exists and is writable")
                 ]
 
