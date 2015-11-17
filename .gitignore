@@ -52,3 +52,6 @@ coverage.xml
 
 # PyBuilder
 target/
+
+/demos-crypto/src/miracl/mirdef.h
+/demos-crypto/src/miracl/mrmuldv.c
