@@ -1,22 +1,22 @@
-# SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# P. Christeas <xrg@linux.gr>, 2015.
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-11-18 04:16+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2015-11-18 05:36+0000\n"
+"PO-Revision-Date: 2015-11-18 07:43+0200\n"
+"Last-Translator: P. Christeas <xrg@linux.gr>\n"
+"Language-Team: Greek <>\n"
+"Language: el\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Lokalize 1.5\n"
 
-#: demos/apps/vbb/apps.py:11 demos/apps/vbb/templates/vbb/base.html:7
+#: demos/apps/vbb/apps.py:9 demos/apps/vbb/templates/vbb/base.html:7
 #: demos/apps/vbb/templates/vbb/base.html:12
 msgid "Digital Ballot Box"
 msgstr "Ψηφιακή Κάλπη"
@@ -122,7 +122,7 @@ msgstr "Ερωτήματα"
 
 #: demos/apps/vbb/templates/vbb/vote.html:25
 msgid "Candidates"
-msgstr ""
+msgstr "Υποψήφιοι"
 
 #: demos/apps/vbb/templates/vbb/vote.html:30
 msgid "The election ID you specified is not valid."
@@ -190,7 +190,7 @@ msgstr "Ερώτημα"
 
 #: demos/apps/vbb/templates/vbb/vote.html:87
 msgid "Party"
-msgstr ""
+msgstr "Συνδυασμός"
 
 #: demos/apps/vbb/templates/vbb/vote.html:89
 #, python-format
@@ -275,7 +275,7 @@ msgstr "Παρακαλούμε επιβεβαιώστε τις επιλογές 
 #: demos/apps/vbb/templates/vbb/vote.html:193
 #: demos/apps/vbb/templates/vbb/vote.html:229
 msgid "Candidate"
-msgstr ""
+msgstr "Υποψήφιος"
 
 #: demos/apps/vbb/templates/vbb/vote.html:195
 #: demos/apps/vbb/templates/vbb/vote.html:231
@@ -319,3 +319,4 @@ msgstr "Σας ευχαριστούμε για τη συμμετοχή σας!"
 #: demos/apps/vbb/templates/vbb/vote.html:247
 msgid "Audit and Results"
 msgstr "Επαλήθευση και Αποτελέσματα"
+
