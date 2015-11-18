@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-25 09:53+0000\n"
+"POT-Creation-Date: 2015-11-18 04:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: demos/apps/vbb/apps.py:9 demos/apps/vbb/templates/vbb/base.html:7
+#: demos/apps/vbb/apps.py:11 demos/apps/vbb/templates/vbb/base.html:7
 #: demos/apps/vbb/templates/vbb/base.html:12
 msgid "Digital Ballot Box"
 msgstr "Ψηφιακή Κάλπη"
@@ -35,7 +35,7 @@ msgid "Read QR Code"
 msgstr "Ανάγνωση QR Code"
 
 #: demos/apps/vbb/templates/vbb/qrcode.html:21
-#: demos/apps/vbb/templates/vbb/vote.html:40
+#: demos/apps/vbb/templates/vbb/vote.html:44
 msgid "Please wait..."
 msgstr "Παρακαλούμε περιμένετε..."
 
@@ -116,112 +116,128 @@ msgstr "Ψηφοφορία"
 msgid "Ballot"
 msgstr "Ψηφοδέλτιο"
 
-#: demos/apps/vbb/templates/vbb/vote.html:22
+#: demos/apps/vbb/templates/vbb/vote.html:23
 msgid "Questions"
 msgstr "Ερωτήματα"
 
-#: demos/apps/vbb/templates/vbb/vote.html:26
+#: demos/apps/vbb/templates/vbb/vote.html:25
+msgid "Candidates"
+msgstr ""
+
+#: demos/apps/vbb/templates/vbb/vote.html:30
 msgid "The election ID you specified is not valid."
 msgstr "Το αναγνωριστικό ψηφοφορίας που καθορίσατε δεν είναι έγκυρο."
 
-#: demos/apps/vbb/templates/vbb/vote.html:27
+#: demos/apps/vbb/templates/vbb/vote.html:31
 msgid "The vote token you specified is not valid."
 msgstr "Το τεκμήριο ψήφου που καθορίσατε δεν είναι έγκυρο."
 
-#: demos/apps/vbb/templates/vbb/vote.html:28
+#: demos/apps/vbb/templates/vbb/vote.html:32
 msgid "The election starts on"
 msgstr "Η ψηφοφορία αρχίζει την"
 
-#: demos/apps/vbb/templates/vbb/vote.html:29
+#: demos/apps/vbb/templates/vbb/vote.html:33
 msgid "The election has been temporarily paused."
 msgstr "Η ψηφοφορία έχει παύσει προσωρινά."
 
-#: demos/apps/vbb/templates/vbb/vote.html:30
+#: demos/apps/vbb/templates/vbb/vote.html:34
 msgid "The election ended on"
 msgstr "Η ψηφοφορία ολοκληρώθηκε την"
 
-#: demos/apps/vbb/templates/vbb/vote.html:31
+#: demos/apps/vbb/templates/vbb/vote.html:35
 msgid "This ballot has already been used."
 msgstr "Το ψηφοδέλτιο αυτό έχει ήδη χρησιμοποιηθεί."
 
-#: demos/apps/vbb/templates/vbb/vote.html:32
+#: demos/apps/vbb/templates/vbb/vote.html:36
 msgid "Could connect to server."
 msgstr "Δεν ήταν δυνατή η σύνδεση με τον εξυπηρετητή."
 
-#: demos/apps/vbb/templates/vbb/vote.html:33
+#: demos/apps/vbb/templates/vbb/vote.html:37
 msgid "Please try again."
 msgstr "Παρακαλούμε προσπαθήστε ξανά."
 
-#: demos/apps/vbb/templates/vbb/vote.html:34
+#: demos/apps/vbb/templates/vbb/vote.html:38
 msgid "Please try again later."
 msgstr "Παρακαλούμε προσπαθήστε ξανά αργότερα."
 
-#: demos/apps/vbb/templates/vbb/vote.html:35
+#: demos/apps/vbb/templates/vbb/vote.html:39
 msgid "An unexpected error occurred."
 msgstr "Παρουσιάστηκε ένα μη αναμενόμενο σφάλμα."
 
-#: demos/apps/vbb/templates/vbb/vote.html:36
+#: demos/apps/vbb/templates/vbb/vote.html:40
 msgid "Please make sure that the web address matches the link in your ballot."
 msgstr ""
 "Παρακαλούμε βεβαιωθείτε ότι η τρέχουσα διεύθυνση ιστού ταιριάζει με το "
 "σύνδεσμο του ψηφοδελτίου σας."
 
-#: demos/apps/vbb/templates/vbb/vote.html:37
+#: demos/apps/vbb/templates/vbb/vote.html:41
 msgid "Your vote has been accepted"
 msgstr "Η ψήφος σας έγινε δεκτή"
 
-#: demos/apps/vbb/templates/vbb/vote.html:45
+#: demos/apps/vbb/templates/vbb/vote.html:49
 msgid "Success"
 msgstr "Επιτυχία"
 
-#: demos/apps/vbb/templates/vbb/vote.html:52
+#: demos/apps/vbb/templates/vbb/vote.html:56
 msgid "Error"
 msgstr "Σφάλμα"
 
-#: demos/apps/vbb/templates/vbb/vote.html:83
-#: demos/apps/vbb/templates/vbb/vote.html:189
-#: demos/apps/vbb/templates/vbb/vote.html:225
+#: demos/apps/vbb/templates/vbb/vote.html:87
+#: demos/apps/vbb/templates/vbb/vote.html:193
+#: demos/apps/vbb/templates/vbb/vote.html:229
 msgid "Question"
 msgstr "Ερώτημα"
 
-#: demos/apps/vbb/templates/vbb/vote.html:85
+#: demos/apps/vbb/templates/vbb/vote.html:87
+msgid "Party"
+msgstr ""
+
+#: demos/apps/vbb/templates/vbb/vote.html:89
 #, python-format
 msgid "Select one option"
 msgid_plural "Select up to %(choices)s options"
 msgstr[0] "Έχετε μία επιλογή"
 msgstr[1] "Έχετε μέχρι %(choices)s επιλογές"
 
-#: demos/apps/vbb/templates/vbb/vote.html:120
+#: demos/apps/vbb/templates/vbb/vote.html:124
 msgid "Previous Question"
 msgstr "Προηγούμενο Ερώτημα"
 
 #: demos/apps/vbb/templates/vbb/vote.html:124
+msgid "Previous Party"
+msgstr "Προηγούμενος Συνδυασμός"
+
+#: demos/apps/vbb/templates/vbb/vote.html:128
 msgid "Next Question"
 msgstr "Επόμενο Ερώτημα"
 
-#: demos/apps/vbb/templates/vbb/vote.html:130
+#: demos/apps/vbb/templates/vbb/vote.html:128
+msgid "Next Party"
+msgstr "Επόμενος Συνδυασμός"
+
+#: demos/apps/vbb/templates/vbb/vote.html:134
 msgid "Please fill in all questions"
 msgstr "Παρακαλούμε συμπληρώστε όλα τα ερωτήματα"
 
-#: demos/apps/vbb/templates/vbb/vote.html:130
+#: demos/apps/vbb/templates/vbb/vote.html:134
 msgid "Submit vote"
 msgstr "Υποβολή ψήφου"
 
-#: demos/apps/vbb/templates/vbb/vote.html:140
-#: demos/apps/vbb/templates/vbb/vote.html:152
+#: demos/apps/vbb/templates/vbb/vote.html:144
+#: demos/apps/vbb/templates/vbb/vote.html:156
 msgid "Security Code"
 msgstr "Κωδικός Ασφαλείας"
 
-#: demos/apps/vbb/templates/vbb/vote.html:145
+#: demos/apps/vbb/templates/vbb/vote.html:149
 msgid "Please enter your ballot's security code"
 msgstr "Παρακαλούμε εισαγάγετε τον κωδικό ασφαλείας του ψηφοδελτίου"
 
-#: demos/apps/vbb/templates/vbb/vote.html:150
+#: demos/apps/vbb/templates/vbb/vote.html:154
 #, python-format
 msgid "Ballot %(b_serial)s - Side %(p_index)s"
 msgstr "Ψηφοδέλτιο %(b_serial)s - Όψη %(p_index)s"
 
-#: demos/apps/vbb/templates/vbb/vote.html:159
+#: demos/apps/vbb/templates/vbb/vote.html:163
 msgid ""
 "The security code enables the voter's web interface. Alternatively, press "
 "\"Cancel\" to vote by typing the vote-codes."
@@ -230,12 +246,12 @@ msgstr ""
 "Εναλλακτικά, πατήστε \"Ακύρωση\" για να ψηφίσετε πληκτρολογώντας τους "
 "κωδικούς επιλογών."
 
-#: demos/apps/vbb/templates/vbb/vote.html:164
-#: demos/apps/vbb/templates/vbb/vote.html:199
+#: demos/apps/vbb/templates/vbb/vote.html:168
+#: demos/apps/vbb/templates/vbb/vote.html:203
 msgid "Important"
 msgstr "Σημαντικό"
 
-#: demos/apps/vbb/templates/vbb/vote.html:164
+#: demos/apps/vbb/templates/vbb/vote.html:168
 msgid ""
 "To protect your privacy, the security code is neither saved nor sent to the "
 "server."
@@ -243,30 +259,35 @@ msgstr ""
 "Για την προστασία της ιδιωτικότητάς σας, ο κωδικός ασφαλείας δεν "
 "αποθηκεύεται και δεν αποστέλλεται στον εξυπηρετητή."
 
-#: demos/apps/vbb/templates/vbb/vote.html:170
-#: demos/apps/vbb/templates/vbb/vote.html:205
+#: demos/apps/vbb/templates/vbb/vote.html:174
+#: demos/apps/vbb/templates/vbb/vote.html:209
 msgid "Cancel"
 msgstr "Ακύρωση"
 
-#: demos/apps/vbb/templates/vbb/vote.html:171
+#: demos/apps/vbb/templates/vbb/vote.html:175
 msgid "OK"
 msgstr "Εντάξει"
 
-#: demos/apps/vbb/templates/vbb/vote.html:183
+#: demos/apps/vbb/templates/vbb/vote.html:187
 msgid "Please confirm your selections"
 msgstr "Παρακαλούμε επιβεβαιώστε τις επιλογές σας"
 
-#: demos/apps/vbb/templates/vbb/vote.html:191
-#: demos/apps/vbb/templates/vbb/vote.html:227
+#: demos/apps/vbb/templates/vbb/vote.html:193
+#: demos/apps/vbb/templates/vbb/vote.html:229
+msgid "Candidate"
+msgstr ""
+
+#: demos/apps/vbb/templates/vbb/vote.html:195
+#: demos/apps/vbb/templates/vbb/vote.html:231
 msgid "Option"
 msgstr "Επιλογή"
 
-#: demos/apps/vbb/templates/vbb/vote.html:191
-#: demos/apps/vbb/templates/vbb/vote.html:227
+#: demos/apps/vbb/templates/vbb/vote.html:195
+#: demos/apps/vbb/templates/vbb/vote.html:231
 msgid "Votecode"
 msgstr "Κωδικός"
 
-#: demos/apps/vbb/templates/vbb/vote.html:199
+#: demos/apps/vbb/templates/vbb/vote.html:203
 msgid ""
 "After clicking \"Confirm\", your vote will be submitted to the server and "
 "you will not be able to make any further changes."
@@ -274,27 +295,27 @@ msgstr ""
 "Αφού κάνετε κλικ στο \"Επιβεβαίωση\", η ψήφος σας θα αποσταλεί στον "
 "εξυπηρετητή και δεν θα μπορείτε να προβείτε σε περαιτέρω αλλαγές."
 
-#: demos/apps/vbb/templates/vbb/vote.html:206
+#: demos/apps/vbb/templates/vbb/vote.html:210
 msgid "Confirm"
 msgstr "Επιβεβαίωση"
 
-#: demos/apps/vbb/templates/vbb/vote.html:218
-#: demos/apps/vbb/templates/vbb/vote.html:242
+#: demos/apps/vbb/templates/vbb/vote.html:222
+#: demos/apps/vbb/templates/vbb/vote.html:246
 msgid "Close"
 msgstr "Κλείσιμο"
 
-#: demos/apps/vbb/templates/vbb/vote.html:227
+#: demos/apps/vbb/templates/vbb/vote.html:231
 msgid "Receipt"
 msgstr "Απόδειξη"
 
-#: demos/apps/vbb/templates/vbb/vote.html:235
+#: demos/apps/vbb/templates/vbb/vote.html:239
 msgid "The results will be announced after the election has ended."
 msgstr "Τα αποτελέσματα θα ανακοινωθούν μετά την ολοκλήρωση της ψηφοφορίας."
 
-#: demos/apps/vbb/templates/vbb/vote.html:236
+#: demos/apps/vbb/templates/vbb/vote.html:240
 msgid "Thank you for your participation!"
 msgstr "Σας ευχαριστούμε για τη συμμετοχή σας!"
 
-#: demos/apps/vbb/templates/vbb/vote.html:243
+#: demos/apps/vbb/templates/vbb/vote.html:247
 msgid "Audit and Results"
 msgstr "Επαλήθευση και Αποτελέσματα"

@@ -119,14 +119,20 @@ class CreateView(View):
             
             election_obj['__list_Question__'] = []
             
+            pac = election_obj['parties_and_candidates']
+            
             for q_index, (question_form, option_formset) \
                 in enumerate(zip(question_formset, option_formsets)):
                 
                 question_obj = {
                     'index': q_index,
                     'text': question_form.cleaned_data['question'],
-                    'columns': question_form.cleaned_data['columns'],
-                    'choices': question_form.cleaned_data['choices'],
+                    'columns': question_form.cleaned_data['columns'] \
+                        if not pac else False,
+                    'choices': question_form.cleaned_data['choices'] \
+                        if not pac else (len(option_formset) if \
+                        len(option_formset) < election_obj['choices'] \
+                        else election_obj['choices']),
                     '__list_OptionC__': [],
                 }
                 

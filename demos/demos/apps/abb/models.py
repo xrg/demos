@@ -30,8 +30,10 @@ class Election(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     
-    long_votecodes = models.BooleanField()
     state = fields.IntEnumField(cls=enums.State)
+    
+    long_votecodes = models.BooleanField()
+    parties_and_candidates = models.BooleanField()
     
     ballots = models.PositiveIntegerField()
     

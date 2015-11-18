@@ -317,19 +317,21 @@ class BallotBuilder:
         self.election_id = election_obj['id']
         self.long_votecodes = election_obj['long_votecodes']
         
+        pac = election_obj['parties_and_candidates']
+        
         # Translatable text
         
         self.serial_text = _("Serial number") + ":"
         self.security_text = _("Security code") + ":"
-        self.opt_text = _("Option")
+        self.opt_text = _("Option") if not pac else _("Candidate")
         self.vc_text = _("Vote-code")
         self.rec_text = _("Receipt")
         self.abb_text = _("Audit and Results") + ":"
         self.vbb_text = _("Digital Ballot Box") + ":"
         self.ballot_text = _("Ballot")
         
-        self.question_text = _("Question") + (" %(index)s:"
-            if len(election_obj['__list_Question__']) > 1 else ":")
+        self.question_text = (_("Question") if not pac else _("Party")) + \
+            (" %(index)s:" if len(election_obj['__list_Question__'])>1 else ":")
         
         self.help_text = _( "Please use one of the two sides to vote and the " \
             "other one to audit your vote")

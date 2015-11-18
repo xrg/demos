@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-29 16:31+0000\n"
+"POT-Creation-Date: 2015-11-18 04:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -99,10 +99,10 @@ msgid_plural "%(timediff)s remaining"
 msgstr[0] "απομένει %(timediff)s"
 msgstr[1] "απομένουν %(timediff)s"
 
-#: demos/settings/base.py:115
+#: demos/settings/base.py:122
 msgid "Greek"
 msgstr "Ελληνικά"
 
-#: demos/settings/base.py:116
+#: demos/settings/base.py:123
 msgid "English"
 msgstr "Αγγλικά"

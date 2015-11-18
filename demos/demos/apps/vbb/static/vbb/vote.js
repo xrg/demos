@@ -334,7 +334,7 @@ $("#vote-submit").click(function(e) {
             filled_questions += 1;
     });
     
-    if (filled_questions < questions.length) {
+    if ((!parties_and_candidates && filled_questions < questions.length) || (parties_and_candidates && filled_questions != 1)) {
         
         // Not all questions have been filled in. Animate carousel's control
         // buttons to attract the user's attention and popup a tooltip.
@@ -346,7 +346,8 @@ $("#vote-submit").click(function(e) {
             controls.removeClass("transform");
         }, 1500);
         
-        $(this).tooltip("show");
+        if (!parties_and_candidates)
+            $(this).tooltip("show");
         return;
     }
     
@@ -411,7 +412,8 @@ $("#vote-confirm").click(function(e) {
             vc_list.push(votecode);
         });
         
-        vote_obj[q_index] = vc_list;
+        if (!parties_and_candidates || (parties_and_candidates && vc_list.length > 0))
+            vote_obj[q_index] = vc_list;
     });
     
     // Now, send the votecodes to the server
@@ -467,7 +469,9 @@ function prep_modal_with_q(callback, modal, old_modal) {
         var question = $(this);
         var panel = base_panel.clone();
         
-        panel.removeClass("hidden");
+        if (!parties_and_candidates || (parties_and_candidates && question.find(".option.active").length > 0))
+            panel.removeClass("hidden");
+        
         panel.insertBefore(base_panel);
         
         var table = panel.find("table > tbody");
