@@ -32,6 +32,9 @@ class Election(models.Model):
     
     state = fields.IntEnumField(cls=enums.State)
     
+    vc_type = models.PositiveSmallIntegerField(choices=\
+        ((enums.Vc.SHORT.value, 'short'), (enums.Vc.LONG.value, 'long')))
+    
     long_votecodes = models.BooleanField()
     parties_and_candidates = models.BooleanField(default=False)
     

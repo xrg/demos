@@ -49,4 +49,9 @@ class State(IntEnumC):
     ERROR = 7
     TEMPLATE = 8
 
+class Vc(IntEnumC):
+    
+    SHORT = 1
+    LONG = 2
+
 #eof
