@@ -7,7 +7,7 @@ from demos.apps.abb import views
 
 urlpatterns = patterns('',
     url(r'^$', views.HomeView.as_view(), name='home'),
-    url(r'^(?P<election_id>[a-zA-Z0-9]+)/$', RedirectView.as_view(pattern_name='abb:results')),
+    url(r'^(?P<election_id>[a-zA-Z0-9]+)/$', RedirectView.as_view(pattern_name='abb:results', permanent=True)),
     url(r'^audit/(?:(?P<election_id>[' + base32cf._valid_re + r']+)/)?$', views.AuditView.as_view(), name='audit'),
     url(r'^results/(?:(?P<election_id>[' + base32cf._valid_re + r']+)/)?$', views.ResultsView.as_view(), name='results'),
 )
