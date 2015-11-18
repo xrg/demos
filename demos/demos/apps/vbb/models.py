@@ -21,7 +21,7 @@ class Election(models.Model):
     state = fields.IntEnumField(cls=enums.State)
     
     long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField()
+    parties_and_candidates = models.BooleanField(default=False)
     
     ballots = models.PositiveIntegerField()
     
