@@ -320,6 +320,9 @@ else:
 
 
 # End of demos-specific configuration
+CELERY_TASK_SERIALIZER = 'custom-json'
+CELERY_RESULT_SERIALIZER = 'custom-json'
+CELERY_ACCEPT_CONTENT = ['custom-json', 'json', 'msgpack']
 
 if DEVELOPMENT:
     DEBUG = True
