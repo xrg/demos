@@ -107,7 +107,10 @@ def login(request):
 def logout(request):
     """API logout view"""
     
-    auth_logout(request)
+    try:
+        auth_logout(request)
+    except Exception:
+        logging.getLogger(__name__).warning("Cannot logout:", exc_info=True)
     return HttpResponse()
 
 
