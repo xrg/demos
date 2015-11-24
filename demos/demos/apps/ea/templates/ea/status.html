@@ -69,11 +69,12 @@
                     <span class="glyphicon pull-right hidden"></span>
                 </a>
             </div>
-            
+            {% if election.state == State.RUNNING %}
             <div class="main-header-small">
                 <h5>{% trans "Ballot management" %}:</h5>
             </div>
             <pre><a target="_blank" href="{{ bds_url }}">{{ bds_url }}</a></pre>
+            {% endif %}
             
             <div class="main-header-small">
                 <h5>{% trans "Election results" %}:</h5>

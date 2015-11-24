@@ -28,10 +28,10 @@
                 
                 <ul class="list-unstyled">
                     
-                    <li>{% trans "Ballot management" %}:&nbsp&nbsp<a class="alert-link" href="{{ bds_url }}{{ election.id }}/">{{ bds_url }}{{ election.id }}/</a></li>
                     <li>{% trans "ID" %}:&nbsp;&nbsp;<strong><span>{{ election.id }}</span></strong></li>
                     <li>{% trans "Start at" %}:&nbsp;&nbsp;<strong><span class="datetime-iso8601" data-format="dddd D MMMM YYYY, hh:mm a">{{ election.start_datetime|date:"c" }}</span></strong></li>
                     <li>{% trans "End at" %}:&nbsp;&nbsp;<strong><span class="datetime-iso8601" data-format="dddd D MMMM YYYY, hh:mm a">{{ election.end_datetime|date:"c" }}</span></strong></li>
+                    {% if election.state == 4 %}<li>{% trans "Ballot management" %}:&nbsp;&nbsp;<a class="alert-link" href="{{ bds_url }}{{ election.id }}/">{{ bds_url }}{{ election.id }}/</a></li>{% endif %}
                     <li>{% trans "Election results" %}:&nbsp;&nbsp;<a class="alert-link" href="{{ abb_url }}{{ election.id }}/">{{ abb_url }}{{ election.id }}/</a></li>
                     
                 </ul>
