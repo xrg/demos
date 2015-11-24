@@ -3,18 +3,17 @@
 # P. Christeas <xrg@linux.gr>, 2015.
 msgid ""
 msgstr ""
-"Project-Id-Version: \n"
+"Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-11-18 05:36+0000\n"
-"PO-Revision-Date: 2015-11-18 07:43+0200\n"
-"Last-Translator: P. Christeas <xrg@linux.gr>\n"
-"Language-Team: Greek <>\n"
-"Language: el\n"
+"POT-Creation-Date: 2015-11-24 02:15+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Lokalize 1.5\n"
 
 #: demos/apps/vbb/apps.py:9 demos/apps/vbb/templates/vbb/base.html:7
 #: demos/apps/vbb/templates/vbb/base.html:12
@@ -320,3 +319,6 @@ msgstr "Σας ευχαριστούμε για τη συμμετοχή σας!"
 msgid "Audit and Results"
 msgstr "Επαλήθευση και Αποτελέσματα"
 
+#: demos/apps/vbb/templates/vbb/home.html:14
+msgid "Welcome to the DEMOS e-voting system"
+msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"
