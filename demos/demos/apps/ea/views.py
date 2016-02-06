@@ -157,7 +157,7 @@ class CreateView(View):
                     for qo in election_obj['__list_Question__']]
                 
                 vc_name = ('l_' if election_obj['vc_type'] == \
-                    enums.Vc.LONG else '') + 'votecode'
+                    enums.VcType.LONG else '') + 'votecode'
                 
                 # Create a sample ballot. Since this is not a real ballot,
                 # pseudo-random number generators are used instead of urandom.
@@ -183,10 +183,10 @@ class CreateView(View):
                             '__list_OptionV__': [],
                         }
                         
-                        if election_obj['vc_type'] == enums.Vc.SHORT:
+                        if election_obj['vc_type'] == enums.VcType.SHORT:
                             votecode_list = list(range(1, options + 1))
                             random.shuffle(votecode_list)
-                        elif election_obj['vc_type'] == enums.Vc.LONG:
+                        elif election_obj['vc_type'] == enums.VcType.LONG:
                             votecode_list=[base32cf.random(config.VOTECODE_LEN,
                                 urandom=False) for _ in range(options)]
                         
