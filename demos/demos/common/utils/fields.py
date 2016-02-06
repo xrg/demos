@@ -24,7 +24,12 @@ class IntEnumField(models.SmallIntegerField):
     
     def __init__(self, *args, **kwargs):
         
+        if 'choices' in kwargs:
+            ValueError("'choices' is not a valid argument for an IntEnumField")
+        
         self.cls = kwargs.pop('cls')
+        kwargs['choices'] = list(self.cls.get_valueitems().items())
+        
         super(IntEnumField, self).__init__(*args, **kwargs)
     
     def deconstruct(self):
