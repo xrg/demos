@@ -84,7 +84,7 @@
                     <div class="page-header">
                         <h3>
                             <span>
-                                <small>{% if election.parties_and_candidates %}{% trans "Question" %}{% else %}{% trans "Party" %}{% endif %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}:</small>
+                                <small>{% if election.parties_and_candidates %}{% trans "Party" %}{% else %}{% trans "Question" %}{% endif %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}:</small>
                                 <br><span class="title">{{ question.text }}</span><br>
                                 <small>{% blocktrans count choices=question.choices %}Select one option{% plural %}Select up to {{ choices }} options{% endblocktrans %}</small>
                             </span>
