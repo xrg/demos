@@ -120,6 +120,8 @@ class Question(models.Model):
     
     index = models.PositiveSmallIntegerField()
     columns = models.BooleanField(default=False)
+
+    options = models.PositiveSmallIntegerField()
     
     # Other model methods and meta options
     

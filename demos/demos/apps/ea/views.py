@@ -127,6 +127,7 @@ class CreateView(View):
                 question_obj = {
                     'index': q_index,
                     'text': question_form.cleaned_data['question'],
+                    'options': len(option_formset),
                     'columns': question_form.cleaned_data['columns'] \
                         if not pac else False,
                     'choices': question_form.cleaned_data['choices'] \
@@ -153,8 +154,8 @@ class CreateView(View):
             
             if request.is_ajax():
                 
-                q_options_list = [len(qo['__list_OptionC__'])
-                    for qo in election_obj['__list_Question__']]
+                q_options_list = [q_obj['options'] \
+                    for q_obj in election_obj['__list_Question__']]
                 
                 vc_name = ('l_' if election_obj['vc_type'] == \
                     enums.VcType.LONG else '') + 'votecode'
