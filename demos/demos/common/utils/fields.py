@@ -240,7 +240,7 @@ class DateTimeField(forms.DateTimeField):
     
     def to_python(self, value):
         
-        if isinstance(value, six.string_types):
+        if isinstance(value, string_types):
             try:
                 parsed_value = parse_datetime(value)
             except ValueError:
