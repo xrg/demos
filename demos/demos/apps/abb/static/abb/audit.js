@@ -126,8 +126,8 @@ $("#audit-button").click(function(e) {
                         tr.find(".zk1").data("url", o_url + "?option=zk1");
                         tr.find(".zk2").data("url", o_url + "?option=zk2");
                         
-                        tr.find(".votecode").data("url", o_url + "?option=receipt_full,"
-                            + (vc_type == VcType.SHORT ? "votecode" : "l_votecode,l_votecode_hash"));
+                        tr.find(".votecode").data("url", !vc_type == VcType.SHORT ? o_url + "?option=receipt_full,votecode" :
+                            [o_url + "?option=receipt_full,l_votecode,l_votecode_hash", p_url + "?part=l_votecode_iterations,l_votecode_salt"]);
                         
                         tr.find(".com,.zk1,.zk2,.votecode").click(json_modal_click_handler);
                     }
