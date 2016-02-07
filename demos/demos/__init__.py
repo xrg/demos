@@ -1,8 +1,11 @@
 # File: __init__.py
 
-from .settings import base
+import os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demos.settings')
 
-if set(base.DEMOS_APPS).intersection(['ea', 'bds', 'abb']):
-    from .settings.celeryapp import app as celery_app
+from django.conf import settings
+
+if set(settings.DEMOS_APPS).intersection(['ea', 'bds', 'abb']):
+    from .celeryapp import app as celery_app
 
 #eof
