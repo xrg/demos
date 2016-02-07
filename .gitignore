@@ -45,9 +45,13 @@ coverage.xml
 
 # Django stuff:
 *.log
+/demos/data
 
 # Sphinx documentation
-docs/_build/
+/docs/_build/
 
 # PyBuilder
 target/
+
+/demos-crypto/src/miracl/mirdef.h
+/demos-crypto/src/miracl/mrmuldv.c

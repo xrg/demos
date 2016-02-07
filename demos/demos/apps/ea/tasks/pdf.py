@@ -25,8 +25,10 @@ from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, \
     Paragraph, Image, Spacer, PageBreak
 
-from demos.common.utils import base32cf, config
-from demos.settings import DEMOS_URL
+from demos.common.utils import base32cf
+from demos.common.utils.config import registry
+
+config = registry.get_config('ea')
 
 
 
@@ -168,12 +170,12 @@ class BallotBuilder:
     page_width -= w_margin * 2.0
     page_height -= h_margin * 2.0
     
-    img_size = int(page_width // 4.5)
-    font_size_tag = int(img_size)
+    img_size = page_width // 4.5
+    font_size_index = int(img_size)
     
-    url_indent = int(page_width // 20)
-    table_top_gap = int(page_width // 15)
-    table_opt_gap = int(page_width // 50)
+    url_indent = page_width // 20
+    table_top_gap = page_width // 15
+    table_opt_gap = page_width // 50
     
     long_vc_split = 4
     long_vc_hyphens = int(math.ceil(float(config.VOTECODE_LEN) / long_vc_split)) - 1
@@ -275,7 +277,7 @@ class BallotBuilder:
         ('ALIGN',         ( 2, 0), ( 2,-1), 'RIGHT'),
         ('VALIGN',        ( 2, 0), ( 2,-1), 'BOTTOM'),
         ('FONT',          ( 2, 0), ( 2,-1), sans_bold),
-        ('FONTSIZE',      ( 2, 0), ( 2,-1), font_size_tag),
+        ('FONTSIZE',      ( 2, 0), ( 2,-1), font_size_index),
     ])
     
     table_hlp_style = TableStyle([
@@ -315,19 +317,21 @@ class BallotBuilder:
         self.election_id = election_obj['id']
         self.long_votecodes = election_obj['long_votecodes']
         
+        pac = election_obj['parties_and_candidates']
+        
         # Translatable text
         
         self.serial_text = _("Serial number") + ":"
         self.security_text = _("Security code") + ":"
-        self.opt_text = _("Option")
+        self.opt_text = _("Option") if not pac else _("Candidate")
         self.vc_text = _("Vote-code")
         self.rec_text = _("Receipt")
         self.abb_text = _("Audit and Results") + ":"
         self.vbb_text = _("Digital Ballot Box") + ":"
         self.ballot_text = _("Ballot")
         
-        self.question_text = _("Question") + (" %(index)s:"
-            if len(election_obj['__list_Question__']) > 1 else ":")
+        self.question_text = (_("Question") if not pac else _("Party")) + \
+            (" %(index)s:" if len(election_obj['__list_Question__'])>1 else ":")
         
         self.help_text = _( "Please use one of the two sides to vote and the " \
             "other one to audit your vote")
@@ -456,10 +460,10 @@ class BallotBuilder:
         
         for part_obj in ballot_obj['__list_Part__']:
             
-            abb_url = urljoin(DEMOS_URL['abb'], \
+            abb_url = urljoin(config.URL['abb'], \
                 quote("%s/" % self.election_id))
             
-            vbb_url = urljoin(DEMOS_URL['vbb'], quote("%s/%s/" \
+            vbb_url = urljoin(config.URL['vbb'], quote("%s/%s/" \
                  % (self.election_id, part_obj['vote_token'])))
             
             # Generate QRCode
@@ -494,7 +498,7 @@ class BallotBuilder:
                 colWidths=[self.page_width], style=self.table_url_style
             )
             
-            table_img = Table([["", "", part_obj['tag']], [qr_img,
+            table_img = Table([["", "", part_obj['index']], [qr_img,
                 self.logo_img, ""]], style=self.table_img_style,
                 colWidths=[self.page_width/3, self.page_width/3,
                 self.page_width/3], rowHeights=[0, None]
@@ -627,8 +631,8 @@ class BallotBuilder:
                         opt_rows = min(2*(avail_rows-1), data_len-row)
                         incl_ftr = (row + opt_rows == data_len)
                         
-                        frst = int(row // 2)
-                        last = int(2*frst+opt_rows - (2*frst+opt_rows)//2)
+                        frst = row // 2
+                        last = 2*frst+opt_rows - (2*frst+opt_rows)//2
                         
                         t = int(math.ceil(data_len/2.0))
                         

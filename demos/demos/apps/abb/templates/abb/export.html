@@ -1,33 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-    
-    <head>
-        
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        
-        <title>AbbExport | DemosVoting</title>
-        
-        <link rel="stylesheet" href="/static/common/export.css">
-        
-    </head>
-    
-    <body>
-        
-        <header>
-        </header>
-        
-        <main>
-            <pre>
-{{ text }}
-            </pre>
-        </main>
-        
-        <footer>
-        </footer>
-        
-    </body>
-    
-</html>
+{% extends "abb/base.html" %}
+
+{% load abb.custom %}
+{% load staticfiles %}
+
+{% block css %}
+
+<link rel="stylesheet" href="{% static 'common/libs/highlight.js/8.9.1/styles/github.css' %}">
+
+<style>
+    pre {
+        overflow: auto;
+        font-size: 13px;
+        word-wrap: normal;
+    }
+</style>
+
+{% endblock css %}
+
+
+{% block main %}
+
+<div class="row">
+    <div class="col-xs-12">
+        <pre class="language-json">{{ data }}</pre>
+    </div>
+</div>
+
+{% endblock main %}
+
+
+{% block script %}
+
+<script src="{% static 'common/libs/highlight.js/8.9.1/highlight.pack.js' %}"></script>
+<script>hljs.highlightBlock(document.getElementsByTagName('pre')[0]);</script>
+
+{% endblock script %}
 

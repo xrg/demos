@@ -3,27 +3,10 @@
 from django.db import models
 from django.core import urlresolvers
 
-from demos.common.utils import config, enums, fields
+from demos.common.utils import enums, fields
+from demos.common.utils.config import registry
 
-
-class Config(models.Model):
-    
-    key = models.CharField(max_length=128, unique=True)
-    value = models.CharField(max_length=128)
-    
-    # Other model methods and meta options
-    
-    def __str__(self):
-        return "%s - %s" % (self.key, self.value)
-    
-    class ConfigManager(models.Manager):
-        def get_by_natural_key(self, key):
-            return self.get(key=key)
-    
-    objects = ConfigManager()
-    
-    def natural_key(self):
-        return (self.key,)
+config = registry.get_config('vbb')
 
 
 class Election(models.Model):
@@ -35,8 +18,10 @@ class Election(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     
-    long_votecodes = models.BooleanField()
     state = fields.IntEnumField(cls=enums.State)
+    
+    long_votecodes = models.BooleanField()
+    parties_and_candidates = models.BooleanField(default=False)
     
     ballots = models.PositiveIntegerField()
     
@@ -66,7 +51,7 @@ class Ballot(models.Model):
     election = models.ForeignKey(Election)
     
     serial = models.PositiveIntegerField()
-    credential_hash = models.CharField(max_length=config.HASH_LEN)
+    credential_hash = models.CharField(max_length=config.HASH_FIELD_LEN)
     
     used = models.BooleanField(default=False)
     
@@ -93,12 +78,12 @@ class Part(models.Model):
     
     ballot = models.ForeignKey(Ballot)
     
-    tag = models.CharField(max_length=1, choices=(('A', 'A'), ('B', 'B')))
-    security_code_hash2 = models.CharField(max_length=config.HASH_LEN)
+    index = models.CharField(max_length=1, choices=(('A', 'A'), ('B', 'B')))
+    security_code_hash2 = models.CharField(max_length=config.HASH_FIELD_LEN)
     
     # OptionV common data
     
-    l_votecode_salt = models.CharField(max_length=config.HASH_LEN,
+    l_votecode_salt = models.CharField(max_length=config.HASH_FIELD_LEN,
         blank=True, default='')
     
     l_votecode_iterations = models.PositiveIntegerField(null=True,
@@ -107,21 +92,21 @@ class Part(models.Model):
     # Other model methods and meta options
     
     def __str__(self):
-        return "%s" % self.tag
+        return "%s" % self.index
     
     class Meta:
-        ordering = ['ballot', 'tag']
-        unique_together = ['ballot', 'tag']
+        ordering = ['ballot', 'index']
+        unique_together = ['ballot', 'index']
     
     class PartManager(models.Manager):
-        def get_by_natural_key(self, p_tag, b_serial, e_id):
-            return self.get(tag=p_tag, ballot__serial=b_serial,
+        def get_by_natural_key(self, p_index, b_serial, e_id):
+            return self.get(index=p_index, ballot__serial=b_serial,
                 ballot__election__id=e_id)
     
     objects = PartManager()
     
     def natural_key(self):
-        return (self.tag,) + self.ballot.natural_key()
+        return (self.index,) + self.ballot.natural_key()
 
 
 class Question(models.Model):
@@ -161,7 +146,7 @@ class OptionV(models.Model):
     
     votecode = models.PositiveSmallIntegerField()
     
-    l_votecode_hash = models.CharField(max_length=config.HASH_LEN,
+    l_votecode_hash = models.CharField(max_length=config.HASH_FIELD_LEN,
         blank=True, default='')
     
     receipt = models.CharField(max_length=config.RECEIPT_LEN)
@@ -177,10 +162,10 @@ class OptionV(models.Model):
         unique_together = ['part', 'question', 'index']
     
     class OptionVManager(models.Manager):
-        def get_by_natural_key(self, o_index, q_index, p_tag, b_serial, e_id):
+        def get_by_natural_key(self, o_index, q_index, p_index, b_serial, e_id):
             return self.get(index=o_index, part__ballot__serial=b_serial,
                 question__index=q_index, question__election__id=e_id,
-                part__tag=p_tag, part__ballot__election__id=e_id)
+                part__index=p_index, part__ballot__election__id=e_id)
     
     objects = OptionVManager()
     
@@ -216,28 +201,21 @@ class OptionC(models.Model):
         return (self.text,) + self.question.natural_key()
 
 
-class RemoteUser(models.Model):
-    
-    username = models.CharField(max_length=128, unique=True)
-    password = models.CharField(max_length=128)
-    
-    # Other model methods and meta options
-    
-    def __str__(self):
-        return "%s - %s" % (self.username, self.password)
-    
-    class RemoteUserManager(models.Manager):
-        def get_by_natural_key(self, username):
-            return self.get(username=username)
-    
-    objects = RemoteUserManager()
-    
-    def natural_key(self):
-        return (self.username,)
-
-
 class Task(models.Model):
     
+    election = models.OneToOneField(Election, primary_key=True)
     task_id = models.UUIDField()
-    election_id = fields.Base32Field(unique=True)
+
+
+# Common models ----------------------------------------------------------------
+
+from demos.common.utils.api import RemoteUserBase
+from demos.common.utils.config import ConfigBase
+
+class Config(ConfigBase):
+    pass
+
+class RemoteUser(RemoteUserBase):
+    pass
+
 

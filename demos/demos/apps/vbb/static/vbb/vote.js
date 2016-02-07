@@ -179,9 +179,8 @@ $("#security-code-input").on("input", function(e) {
         return;
     }
     
-    var hash = sjcl.codec.base64.fromBits(
-        sjcl.misc.pbkdf2(value, salt, iterations)
-    );
+    var hash = sjcl.misc.pbkdf2(value, salt, iterations);
+    hash = sjcl.codec.base32cf.fromBits(hash);
     
     // request security code's verification
     
@@ -335,7 +334,7 @@ $("#vote-submit").click(function(e) {
             filled_questions += 1;
     });
     
-    if (filled_questions < questions.length) {
+    if ((!parties_and_candidates && filled_questions < questions.length) || (parties_and_candidates && filled_questions != 1)) {
         
         // Not all questions have been filled in. Animate carousel's control
         // buttons to attract the user's attention and popup a tooltip.
@@ -347,7 +346,8 @@ $("#vote-submit").click(function(e) {
             controls.removeClass("transform");
         }, 1500);
         
-        $(this).tooltip("show");
+        if (!parties_and_candidates)
+            $(this).tooltip("show");
         return;
     }
     
@@ -412,7 +412,8 @@ $("#vote-confirm").click(function(e) {
             vc_list.push(votecode);
         });
         
-        vote_obj[q_index] = vc_list;
+        if (!parties_and_candidates || (parties_and_candidates && vc_list.length > 0))
+            vote_obj[q_index] = vc_list;
     });
     
     // Now, send the votecodes to the server
@@ -468,7 +469,9 @@ function prep_modal_with_q(callback, modal, old_modal) {
         var question = $(this);
         var panel = base_panel.clone();
         
-        panel.removeClass("hidden");
+        if (!parties_and_candidates || (parties_and_candidates && question.find(".option.active").length > 0))
+            panel.removeClass("hidden");
+        
         panel.insertBefore(base_panel);
         
         var table = panel.find("table > tbody");
@@ -609,68 +612,6 @@ function carousel_upd_all() {
 $(window).resize(debounce(carousel_upd_all));
 
 // -----------------------------------------------------------------------------
-
-// Factorial, n-th permutation and original from n-th permutation functions.
-// A sjcl version with division support is required.
-
-function factorial(n) {
-    
-    var n = new sjcl.bn(n);
-    var i = new sjcl.bn(2);
-    var val = new sjcl.bn(1);
-    
-    while(n.greaterEquals(i)) {
-        val = val.mul(i);
-        i.addM(1);
-    }
-    
-    return val;
-}
-
-function permute(iterable, index) {
-    
-    var seq = iterable.slice();
-    var fact = factorial(seq.length);
-    var perm = new Array();
-    var next, index = (new sjcl.bn(index)).mod(fact);
-    
-    while (seq.length > 0) {
-        
-        fact = fact.div(seq.length);
-        next = index.divmod(fact, index);
-        item = seq.splice(parseInt(next.toString(), 16), 1);
-        perm.push(item);
-    }
-    
-    return perm;
-}
-
-function permute_ori(iterable, index) {
-    
-    var seq = iterable.slice();
-    
-    var fact = factorial(seq.length);
-    var pos, index = (new sjcl.bn(index)).mod(fact);
-    var next = new Array();
-    
-    for (var i = seq.length; i > 0; i--) {
-        
-        fact = fact.div(i);
-        pos = index.divmod(fact, index);
-        next.push(pos);
-    }
-    
-    var pos, item;
-    var perm = new Array();
-    
-    for (var i = seq.length - 1; i >= 0; i--) {
-        pos = next[i];
-        item = seq[i];
-        perm.splice(pos, 0, item)
-    }
-    
-    return perm;
-}
 
 function transpose(a) {
 

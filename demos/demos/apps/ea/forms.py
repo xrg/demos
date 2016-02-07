@@ -3,13 +3,15 @@
 from functools import partial
 
 from django import forms
+from django.conf import settings
 from django.utils import timezone
 from django.forms.formsets import BaseFormSet, formset_factory
 from django.utils.translation import ugettext_lazy as _
 
 from demos.apps.ea import fields
-from demos.common.utils import config
-from django.conf import settings as django_settings
+from demos.common.utils.config import registry
+
+config = registry.get_config('ea')
 
 
 # DefineView Forms -------------------------------------------------------------
@@ -25,13 +27,22 @@ class ElectionForm(forms.Form):
     ballots = forms.IntegerField(label=_('Ballots'),
         min_value=1, max_value=config.MAX_BALLOTS)
     
-    language = forms.ChoiceField(label=_('Language'), choices=django_settings.LANGUAGES)
+    language = forms.ChoiceField(label=_('Language'),choices=settings.LANGUAGES)
     
     trustee_list = fields.MultiEmailField(label=_('Trustee e-mails'),
-        min_length=1, max_length=config.MAX_TRUSTEES)
+        min_length=1, max_length=config.MAX_TRUSTEES, required=False)
     
     votecodes = forms.ChoiceField(label=_('Vote-codes'), \
         choices=(('short', _('Short')), ('long', _('Long'))))
+    
+    voting_type = forms.ChoiceField(label=_('Voting type'), \
+        choices=(('elections', _('Elections')),('referendum', _('Referendum'))))
+    
+    voting_system = forms.ChoiceField(label=_('Voting system'), \
+        choices=(('pr', _('Proportional representation')),))
+    
+    choices = forms.IntegerField(label=_('Multiple choices'),
+        initial=1, min_value=1, max_value=config.MAX_OPTIONS, required=False)
     
     error_msg = {
         'passed': _("The date and time you selected have passed."),
@@ -82,6 +93,13 @@ class ElectionForm(forms.Form):
         
         if votecodes is not None:
             cleaned_data['long_votecodes'] = (votecodes == 'long')
+        
+        # Set parties_and_candidates boolean variable
+        
+        voting_type = cleaned_data.get('voting_type')
+        
+        if voting_type is not None:
+            cleaned_data['parties_and_candidates'] = (voting_type=='elections')
 
 
 class QuestionForm(forms.Form):

@@ -1,8 +1,11 @@
 # File: base32cf.py
 
+from __future__ import division
+
+import os
 import re
 import math
-from os import urandom
+
 from random import getrandbits
 from demos.common.utils import intc
 
@@ -19,11 +22,12 @@ except AttributeError:
     _translation = string.maketrans('OIL', '011')
     _str_translate = string.translate
 
-_validation = re.compile('^[' + _chars + '-' + ']*$')
+_valid_re = '-0-9A-TV-Za-tv-z'
+_validation = re.compile('^[' + '-' + _chars + ']*$')
 
 
 def encode(number, hyphens=-1):
-    """Encode an integer using base32cf. 'number' is the integer to encode.
+    """Encode an integer to base32cf string. 'number' is the integer to encode.
     The encoded string is returned."""
     
     if number < 0:
@@ -32,8 +36,12 @@ def encode(number, hyphens=-1):
     encoded = '' if number else '0'
     
     while number:
-        number, i = divmod(number, 32)
-        encoded = _chars[i] + encoded
+        
+        d = number >> 5
+        m = number - (d << 5)
+        
+        encoded = _chars[m] + encoded
+        number = d
     
     if hyphens > 0:
         encoded = hyphen(encoded, hyphens)
@@ -42,8 +50,8 @@ def encode(number, hyphens=-1):
 
 
 def decode(encoded):
-    """Decode a base32cf encoded string. 'string' is the string to decode. 
-    The resulting int is returned. ValueError is raised if there are
+    """Decode a base32cf encoded string. 'string' is the string to decode.
+    The resulting integer is returned. ValueError is raised if there are
     non-alphabet characters present in the input."""
     
     number = 0
@@ -52,21 +60,21 @@ def decode(encoded):
     encoded = hyphen(encoded, 0)
     
     for c in encoded:
-        number = _chars.index(c) + number * 32
+        number = _chars.index(c) + (number << 5)
     
     return number
 
 
-def random(length, hyphens=-1, crypto=True):
+def random(length, hyphens=-1, urandom=True):
     """Generate a random base32cf encoded string. 'length' is the length of
-    final encoded string."""
+    resulting encoded string."""
     
     bits = length * 5
-    bytes = int(math.ceil(bits / 8.0))
+    bytes = int(math.ceil(bits / 8))
     shift_bits = (8 * bytes) - bits
     
-    if crypto:
-        number = intc.from_bytes(urandom(bytes), 'big')
+    if urandom:
+        number = intc.from_bytes(os.urandom(bytes), 'big')
     else:
         number = getrandbits(bytes * 8)
     
@@ -80,10 +88,10 @@ def random(length, hyphens=-1, crypto=True):
 
 
 def normalize(encoded, hyphens=-1):
-    """Normalize a base32c encoded string by replacing 'I' and 'L'
-    with '1', replacing 'O' with '0' and convert all characters to uppercase.
-    'string' is the string to normalize. ValuefError is raised if there are
-    non-alphabet characters present in the input."""
+    """Normalize a base32cf encoded string by replacing 'I' and 'L' with '1',
+    'O' with '0' and converting all characters to uppercase. 'string' is the
+    string to normalize. ValuefError is raised if there are non-alphabet
+    characters present in the input."""
     
     encoded = _str_translate(str(encoded).upper(), _translation)
     

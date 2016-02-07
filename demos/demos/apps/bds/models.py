@@ -1,29 +1,14 @@
 # File: models.py
 
+import os
+
 from django.db import models
 from django.core import urlresolvers
 
-from demos.common.utils import config, enums, fields, storage
+from demos.common.utils import enums, fields, storage
+from demos.common.utils.config import registry
 
-
-class Config(models.Model):
-    
-    key = models.CharField(max_length=128, unique=True)
-    value = models.CharField(max_length=128)
-    
-    # Other model methods and meta options
-    
-    def __str__(self):
-        return "%s - %s" % (self.key, self.value)
-    
-    class ConfigManager(models.Manager):
-        def get_by_natural_key(self, key):
-            return self.get(key=key)
-    
-    objects = ConfigManager()
-    
-    def natural_key(self):
-        return (self.key,)
+config = registry.get_config('bds')
 
 
 class Election(models.Model):
@@ -35,8 +20,10 @@ class Election(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     
-    long_votecodes = models.BooleanField()
     state = fields.IntEnumField(cls=enums.State)
+    
+    long_votecodes = models.BooleanField()
+    parties_and_candidates = models.BooleanField(default=False)
     
     # Other model methods and meta options
     
@@ -59,17 +46,22 @@ class Election(models.Model):
         return (self.id,)
 
 
+ballot_fs = storage.PrivateTarFileStorage(
+    location=os.path.join(config.FILESYSTEM_ROOT, 'ballots'),
+    tar_permissions_mode=0o600, tar_file_permissions_mode=0o600,
+    tar_directory_permissions_mode=0o700
+)
+
+def get_ballot_file_path(ballot, filename):
+    return "%s/%s" % (ballot.election.id, filename)
+
+
 class Ballot(models.Model):
-    
-    fs = storage.TarFileStorage()
-    
-    def get_upload_file_path(self, filename):
-        return "%s/%s" % (self.election.id, filename)
     
     election = models.ForeignKey(Election)
     
     serial = models.PositiveIntegerField()
-    pdf = models.FileField(upload_to=get_upload_file_path, storage=fs)
+    pdf = models.FileField(upload_to=get_ballot_file_path, storage=ballot_fs)
     
     # Other model methods and meta options
     
@@ -94,7 +86,7 @@ class Part(models.Model):
     
     ballot = models.ForeignKey(Ballot)
     
-    tag = models.CharField(max_length=1, choices=(('A', 'A'), ('B', 'B')))
+    index = models.CharField(max_length=1, choices=(('A', 'A'), ('B', 'B')))
     
     vote_token = models.TextField()
     security_code = models.CharField(max_length=config.SECURITY_CODE_LEN)
@@ -102,21 +94,21 @@ class Part(models.Model):
     # Other model methods and meta options
     
     def __str__(self):
-        return "%s" % self.tag
+        return "%s" % self.index
     
     class Meta:
-        ordering = ['ballot', 'tag']
-        unique_together = ['ballot', 'tag']
+        ordering = ['ballot', 'index']
+        unique_together = ['ballot', 'index']
     
     class PartManager(models.Manager):
-        def get_by_natural_key(self, p_tag, b_serial, e_id):
-            return self.get(tag=p_tag, ballot__serial=b_serial,
+        def get_by_natural_key(self, p_index, b_serial, e_id):
+            return self.get(index=p_index, ballot__serial=b_serial,
                 ballot__election__id=e_id)
     
     objects = PartManager()
     
     def natural_key(self):
-        return (self.tag,) + self.ballot.natural_key()
+        return (self.index,) + self.ballot.natural_key()
 
 
 class Trustee(models.Model):
@@ -143,28 +135,20 @@ class Trustee(models.Model):
         return (self.email,) + self.election.natural_key()
 
 
-class RemoteUser(models.Model):
-    
-    username = models.CharField(max_length=128, unique=True)
-    password = models.CharField(max_length=128)
-    
-    # Other model methods and meta options
-    
-    def __str__(self):
-        return "%s - %s" % (self.username, self.password)
-    
-    class RemoteUserManager(models.Manager):
-        def get_by_natural_key(self, username):
-            return self.get(username=username)
-    
-    objects = RemoteUserManager()
-    
-    def natural_key(self):
-        return (self.username,)
-
-
 class Task(models.Model):
     
+    election = models.OneToOneField(Election, primary_key=True)
     task_id = models.UUIDField()
-    election_id = fields.Base32Field(unique=True)
+
+
+# Common models ----------------------------------------------------------------
+
+from demos.common.utils.api import RemoteUserBase
+from demos.common.utils.config import ConfigBase
+
+class Config(ConfigBase):
+    pass
+
+class RemoteUser(RemoteUserBase):
+    pass
 

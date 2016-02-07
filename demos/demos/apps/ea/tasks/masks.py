@@ -1,24 +1,26 @@
 # File: masks.py
 
+from __future__ import division
+
 import re
 
 _masks = {
     
     'bds' : {
         'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
-            'long_votecodes', 'state'],
+            'long_votecodes', 'state', 'parties_and_candidates'],
         'Trustee': ['email'],
         'Ballot': ['serial'],
-        'Part': ['tag', 'security_code', 'vote_token'],
+        'Part': ['index', 'security_code', 'vote_token'],
      },
     
     'abb' : {
         'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
-            'long_votecodes', 'state', 'ballots', 'x509_cert'],
+            'long_votecodes', 'state', 'ballots', 'cert', 'parties_and_candidates'],
         'Question': ['text', 'key', 'index', 'choices'],
         'OptionC': ['text', 'index'],
         'Ballot': ['serial', 'credential_hash'],
-        'Part': ['tag', 'security_code_hash2', 'l_votecode_salt', \
+        'Part': ['index', 'security_code_hash2', 'l_votecode_salt', \
             'l_votecode_iterations'],
         'OptionV' : ['votecode', 'l_votecode_hash', 'com', 'zk1', 'index', \
             'question', 'receipt_full'],
@@ -26,11 +28,11 @@ _masks = {
     
     'vbb' : {
         'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
-            'long_votecodes', 'state', 'ballots'],
+            'long_votecodes', 'state', 'ballots', 'parties_and_candidates'],
         'Question': ['text', 'index', 'columns', 'choices'],
         'OptionC': ['text', 'index'],
         'Ballot': ['serial', 'credential_hash'],
-        'Part': ['tag', 'security_code_hash2', 'l_votecode_salt', \
+        'Part': ['index', 'security_code_hash2', 'l_votecode_salt', \
             'l_votecode_iterations'],
         'OptionV' : ['votecode', 'l_votecode_hash', 'receipt', 'index', \
             'question'],

@@ -1,13 +1,14 @@
 # File: urls.py
 
 from django.conf.urls import patterns, include, url
+from demos.common.utils import api, base32cf
 from demos.apps.bds import views
-from demos.common.utils import api
 from django.contrib.auth.decorators import login_required
 
 urlpatterns = patterns('',
     url(r'^$', views.HomeView.as_view(), name='home'),
-    url(r'^manage/(?P<election_id>[A-Za-z0-9]+)/$', login_required(views.ManageView.as_view()), name='manage'),
+    url(r'^manage/(?P<election_id>[' + base32cf._valid_re + r']+)/$',
+                   login_required(views.ManageView.as_view()), name='manage'),
 )
 
 apipatterns = [

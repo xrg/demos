@@ -1,13 +1,15 @@
 # File: urls.py
 
+from django.views.generic import RedirectView
 from django.conf.urls import patterns, include, url
-from demos.common.utils import api
+from demos.common.utils import api, base32cf
 from demos.apps.abb import views
 
 urlpatterns = patterns('',
     url(r'^$', views.HomeView.as_view(), name='home'),
-    url(r'^audit/(?:(?P<election_id>[a-zA-Z0-9]+)/)?$', views.AuditView.as_view(), name='audit'),
-    url(r'^results/(?:(?P<election_id>[a-zA-Z0-9]+)/)?$', views.ResultsView.as_view(), name='results'),
+    url(r'^(?P<election_id>[a-zA-Z0-9]+)/$', RedirectView.as_view(pattern_name='abb:results')),
+    url(r'^audit/(?:(?P<election_id>[' + base32cf._valid_re + r']+)/)?$', views.AuditView.as_view(), name='audit'),
+    url(r'^results/(?:(?P<election_id>[' + base32cf._valid_re + r']+)/)?$', views.ResultsView.as_view(), name='results'),
 )
 
 apipatterns = [
@@ -23,6 +25,6 @@ apipatterns = [
         url(r'^logout/$', api.logout, name='logout'),
     ], namespace='auth')),
     
-    url(r'^export/', include(views.ExportView.urlpatterns(), namespace='export')),
+    url(r'^export/', include(views.ExportView._urlpatterns(), namespace='export')),
 ]
 

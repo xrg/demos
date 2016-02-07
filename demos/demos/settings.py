@@ -25,9 +25,6 @@ SECRET_KEY = NO_SECRET_KEY_DEFINED
 DEBUG = False
 DEVELOPMENT = False      # would turn off security, enable DEBUG
 
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-
 ALLOWED_HOSTS = [
     '',
 ]
@@ -35,6 +32,14 @@ ALLOWED_HOSTS = [
 ADMINS = [
     ('Root', 'root@localhost'),
 ]
+
+
+# All writable files may have this as a reference
+
+SPOOL_DIR = '/var/spool/demos-voting'
+
+if DEVELOPMENT:
+    SPOOL_DIR = os.path.join(os.path.dirname(BASE_DIR), 'data')
 
 
 # Application definition
@@ -78,6 +83,7 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
+                'demos.common.utils.context_processors.common',
             ],
             'loaders': [
                 ('django.template.loaders.cached.Loader', [
@@ -137,8 +143,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_L10N = True
 
-DATETIME_FORMAT = 'l, j F Y, h:i a'
-
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'common/locale'),
 ]
@@ -153,8 +157,6 @@ STATICFILES_DIRS = [
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
-
-MEDIA_ROOT = '/var/spool/demos-voting/media'
 
 
 # Sending email
@@ -208,12 +210,15 @@ LOGGING = {
 
 
 # Security Middleware
-# https://docs.djangoproject.com/en/1.8/ref/middleware/#module-django.contrib.messages.middleware
+# https://docs.djangoproject.com/en/1.8/ref/middleware/#module-django.middleware.security
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_SECONDS = 31536000
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 
 # Demos-specific configuration
@@ -246,27 +251,22 @@ DEMOS_CONFIG = {
         'CA_CERT_PEM': False, # os.path.expanduser('~/ca/cacert.pem'),
         'CA_PKEY_PEM': False, # os.path.expanduser('~/ca/private/cakey.pem'),
         'CA_PKEY_PASSPHRASE': 'BAD_PASSPHRASE',
-    },
 
+    },
     'bds': {
 
-        # Absolute filesystem path to the directory that will hold tar files.
-        # They are used to organize PDF ballot files by their election ID.
-        'TARSTORAGE_ROOT': os.path.expanduser('~/bds/elections'),
-
-        # URL that handles the files served from TARSTORAGE_ROOT. If this is
-        # None, files will not be accessible via an URL.
-        'TARSTORAGE_URL': None,
-
-        # The numeric mode (i.e. 0o644) to set root tar files to. If this is
-        # None, you’ll get operating-system dependent behavior.
-        'TARSTORAGE_PERMISSIONS': None,
+        # Absolute path to the directory that will hold machine-local files
+        'FILESYSTEM_ROOT': os.path.join(SPOOL_DIR, 'bds'),
     },
 
     'abb': {
-
+        
         # Performance settings, they affect CPU and RAM usage, etc
         'BATCH_SIZE': 128,
+        
+        # Absolute path to the directory that will hold machine-local files
+        
+        'FILESYSTEM_ROOT': os.path.join(SPOOL_DIR, 'abb'),
     },
 
     'vbb': {
@@ -288,6 +288,13 @@ DEMOS_API_URL = {
     'abb': 'https://api.demos-abb.our-domain.com',
     'vbb': 'https://api.demos-vbb.our-domain.com',
 }
+
+# In case the API URLs are SSL-enabled and use self-signed certificates,
+# their verification can be disabled to allow requests among servers
+# http://docs.python-requests.org/en/latest/user/advanced/#ssl-cert-verification
+
+# DEMOS_API_VERIFY = False        # the default is True
+
 
 INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
 LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
@@ -316,14 +323,10 @@ else:
 
 if DEVELOPMENT:
     DEBUG = True
-
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
-
+    
     TEMPLATES[0]['APP_DIRS'] = True
     del TEMPLATES[0]['OPTIONS']['loaders']
-
-
+    
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -356,12 +359,15 @@ if DEVELOPMENT:
             },
         }
     }
-
+    
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
+    
     SECURE_BROWSER_XSS_FILTER = False
     SECURE_CONTENT_TYPE_NOSNIFF = False
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_SECONDS = 0
+
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
 
 #eof

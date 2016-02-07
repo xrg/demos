@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Ballot',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
                 ('serial', models.PositiveIntegerField()),
                 ('credential_hash', models.CharField(max_length=128)),
                 ('used', models.BooleanField(default=False)),
@@ -27,10 +27,13 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Config',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
                 ('key', models.CharField(unique=True, max_length=128)),
                 ('value', models.CharField(max_length=128)),
             ],
+            options={
+                'abstract': False,
+            },
         ),
         migrations.CreateModel(
             name='Election',
@@ -50,7 +53,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='OptionC',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
                 ('text', models.CharField(max_length=128)),
                 ('index', models.PositiveSmallIntegerField()),
             ],
@@ -61,9 +64,9 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='OptionV',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
                 ('votecode', models.PositiveSmallIntegerField()),
-                ('l_votecode_hash', models.CharField(blank=True, default='', max_length=128)),
+                ('l_votecode_hash', models.CharField(blank=True, max_length=128, default='')),
                 ('receipt', models.CharField(max_length=10)),
                 ('index', models.PositiveSmallIntegerField()),
             ],
@@ -74,27 +77,25 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Part',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('tag', models.CharField(choices=[('A', 'A'), ('B', 'B')], max_length=1)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
+                ('index', models.CharField(choices=[('A', 'A'), ('B', 'B')], max_length=1)),
                 ('security_code_hash2', models.CharField(max_length=128)),
-                ('l_votecode_salt', models.CharField(blank=True, default='', max_length=128)),
-                ('l_votecode_iterations', models.PositiveIntegerField(blank=True, default=None, null=True)),
+                ('l_votecode_salt', models.CharField(blank=True, max_length=128, default='')),
+                ('l_votecode_iterations', models.PositiveIntegerField(null=True, blank=True, default=None)),
                 ('ballot', models.ForeignKey(to='vbb.Ballot')),
             ],
             options={
-                'ordering': ['ballot', 'tag'],
+                'ordering': ['ballot', 'index'],
             },
         ),
         migrations.CreateModel(
             name='Question',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
                 ('text', models.CharField(max_length=128)),
                 ('choices', models.PositiveSmallIntegerField()),
                 ('index', models.PositiveSmallIntegerField()),
                 ('columns', models.BooleanField(default=False)),
-                ('election', models.ForeignKey(to='vbb.Election')),
-                ('m2m_parts', models.ManyToManyField(to='vbb.Part')),
             ],
             options={
                 'ordering': ['election', 'index'],
@@ -103,18 +104,30 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RemoteUser',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
                 ('username', models.CharField(unique=True, max_length=128)),
                 ('password', models.CharField(max_length=128)),
             ],
+            options={
+                'abstract': False,
+            },
         ),
         migrations.CreateModel(
             name='Task',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('election', models.OneToOneField(to='vbb.Election', serialize=False, primary_key=True)),
                 ('task_id', models.UUIDField()),
-                ('election_id', demos.common.utils.fields.Base32Field(unique=True)),
             ],
+        ),
+        migrations.AddField(
+            model_name='question',
+            name='election',
+            field=models.ForeignKey(to='vbb.Election'),
+        ),
+        migrations.AddField(
+            model_name='question',
+            name='m2m_parts',
+            field=models.ManyToManyField(to='vbb.Part'),
         ),
         migrations.AddField(
             model_name='optionv',
@@ -142,7 +155,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='part',
-            unique_together=set([('ballot', 'tag')]),
+            unique_together=set([('ballot', 'index')]),
         ),
         migrations.AlterUniqueTogether(
             name='optionv',

@@ -1,5 +1,8 @@
 # File: api.py
 
+from __future__ import division
+
+import logging
 import requests
 
 try:
@@ -7,18 +10,18 @@ try:
 except ImportError:
     from urlparse import urljoin
 
-from django.http import HttpResponse, HttpResponseForbidden
-from django.contrib.auth import login as auth_login, logout as auth_logout
-from django.contrib.auth.forms import AuthenticationForm
-from django.middleware import csrf
-
-from demos.settings import DEMOS_API_URL
-
-import logging
 from six import string_types
 
+from django.db import models
+from django.conf import settings
+from django.http import HttpResponse, HttpResponseForbidden
+from django.middleware import csrf
+from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth.forms import AuthenticationForm
+
+
 class Session:
-    _log = logging.getLogger('demos.remoteSession')
+    _log = logging.getLogger(__name__ + '.Session')
     
     def __init__(self, server, app_config):
         
@@ -27,7 +30,9 @@ class Session:
         self.username = app_config.label
         self.password = app_config.get_model('RemoteUser').\
             objects.get(username=server).password
-        self.url = urljoin(DEMOS_API_URL[server], 'api/')
+        
+        self.url = urljoin(settings.DEMOS_API_URL[server], 'api/')
+        self.verify = getattr(settings, 'DEMOS_API_VERIFY', True)
         
         self.login()
     
@@ -40,7 +45,7 @@ class Session:
     def login(self):
         
         url = urljoin(self.url, 'auth/login/')
-        r = self.s.get(url) # won't authenticate, only get the CSRF token
+        r = self.s.get(url, verify=self.verify)
         r.raise_for_status()
         
         payload = {
@@ -49,13 +54,13 @@ class Session:
             'csrfmiddlewaretoken': self.s.cookies.get('csrftoken', False),
         }
         
-        r = self.s.post(url, data=payload, verify=True)
+        r = self.s.post(url, data=payload, verify=self.verify)
         r.raise_for_status()
     
     def logout(self):
         
         url = urljoin(self.url, 'auth/logout/')
-        r = self.s.get(url)
+        r = self.s.get(url, verify=self.verify)
         r.raise_for_status()
     
     def post(self, path, data={}, files=None, _retry_login=True):
@@ -63,12 +68,12 @@ class Session:
         try:
             url = urljoin(self.url, path)
             
-            r = self.s.get(url)
+            r = self.s.get(url, verify=self.verify)
             r.raise_for_status()
             
             data['csrfmiddlewaretoken'] = self.s.cookies.get('csrftoken', False)
             
-            r = self.s.post(url, data=data, files=files, verify=True)
+            r = self.s.post(url, data=data, files=files, verify=self.verify)
             r.raise_for_status()
             
             return r
@@ -133,4 +138,27 @@ def user_required(username):
         return _wrapped_view
         
     return decorator
+
+
+class RemoteUserBase(models.Model):
+    
+    username = models.CharField(max_length=128, unique=True)
+    password = models.CharField(max_length=128)
+    
+    # Other model methods and meta options
+    
+    def __str__(self):
+        return "%s - %s" % (self.username, self.password)
+    
+    class Meta:
+        abstract = True
+    
+    class RemoteUserManager(models.Manager):
+        def get_by_natural_key(self, username):
+            return self.get(username=username)
+    
+    objects = RemoteUserManager()
+    
+    def natural_key(self):
+        return (self.username,)
 

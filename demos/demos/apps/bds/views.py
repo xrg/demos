@@ -1,5 +1,7 @@
 # File: views.py
 
+from __future__ import division
+
 import json
 import logging
 import tarfile
@@ -17,10 +19,13 @@ from django.utils.decorators import method_decorator
 from django.core.urlresolvers import reverse
 
 from demos.apps.bds.models import Election
-from demos.common.utils import api, config, dbsetup
+
+from demos.common.utils import api, dbsetup
+from demos.common.utils.config import registry
 
 logger = logging.getLogger(__name__)
 app_config = apps.get_app_config('bds')
+config = registry.get_config('bds')
 
 
 class HomeView(View):
@@ -36,7 +41,8 @@ class ManageView(View):
     template_name = 'bds/manage.html'
     
     def get(self, request, election_id):
-        f = http.FileResponse(open(config.TARSTORAGE_ROOT + '/' + election_id + '.tar', 'rb'), content_type='application/force-download')
+        
+        f = http.FileResponse(open(config.FILESYSTEM_ROOT + '/ballots/' + election_id + '.tar', 'rb'), content_type='application/force-download')
         f['Content-Disposition'] = 'attachment; filename=%s' % election_id+'.tar'
         return f
 

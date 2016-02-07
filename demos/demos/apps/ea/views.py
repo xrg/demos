@@ -1,5 +1,7 @@
 # File: views.py
 
+from __future__ import division
+
 import json
 import random
 import logging
@@ -31,15 +33,15 @@ from demos.apps.ea.forms import ElectionForm, OptionFormSet, \
 from demos.apps.ea.tasks import api_update, cryptotools, election_setup, pdf
 from demos.apps.ea.models import Config, Election, OptionC, OptionV, Task
 
-from demos.common.utils import api, base32cf, config, crypto, enums
-from demos.common.utils.dbsetup import _prep_kwargs
+from demos.common.utils import api, base32cf, crypto, enums
 from demos.common.utils.json import CustomJSONEncoder
-
-from demos.settings import DEMOS_URL
+from demos.common.utils.config import registry
+from demos.common.utils.dbsetup import _prep_kwargs
 from django.utils.translation import ugettext as _
 
 logger = logging.getLogger(__name__)
 app_config = apps.get_app_config('ea')
+config = registry.get_config('ea')
 
 
 class HomeView(View):
@@ -117,14 +119,20 @@ class CreateView(View):
             
             election_obj['__list_Question__'] = []
             
+            pac = election_obj['parties_and_candidates']
+            
             for q_index, (question_form, option_formset) \
                 in enumerate(zip(question_formset, option_formsets)):
                 
                 question_obj = {
                     'index': q_index,
                     'text': question_form.cleaned_data['question'],
-                    'columns': question_form.cleaned_data['columns'],
-                    'choices': question_form.cleaned_data['choices'],
+                    'columns': question_form.cleaned_data['columns'] \
+                        if not pac else False,
+                    'choices': question_form.cleaned_data['choices'] \
+                        if not pac else (len(option_formset) if \
+                        len(option_formset) < election_obj['choices'] \
+                        else election_obj['choices']),
                     '__list_OptionC__': [],
                 }
                 
@@ -159,14 +167,13 @@ class CreateView(View):
                     '__list_Part__': [],
                 }
                 
-                for tag in ['A', 'B']:
+                for p_index in ['A', 'B']:
                     
                     part_obj = {
-                        'tag': tag,
+                        'index': p_index,
                         'vote_token': 'vote_token',
                         'security_code': base32cf.random(
-                            config.SECURITY_CODE_LEN,crypto=False
-                        ),
+                            config.SECURITY_CODE_LEN, urandom=False),
                         '__list_Question__': [],
                     }
                     
@@ -181,15 +188,14 @@ class CreateView(View):
                             random.shuffle(votecode_list)
                         else:
                             votecode_list=[base32cf.random(config.VOTECODE_LEN,
-                                crypto=False) for _ in range(options)]
+                                urandom=False) for _ in range(options)]
                         
                         for votecode in votecode_list:
                             
                             data_obj = {
                                 vc_type: votecode,
                                 'receipt': base32cf.random(
-                                    config.RECEIPT_LEN, crypto=False
-                                ),
+                                    config.RECEIPT_LEN, urandom=False),
                             }
                             
                             question_obj['__list_OptionV__'].append(data_obj)
@@ -239,7 +245,7 @@ class CreateView(View):
                 task = election_setup.s(election_obj, language)
                 task.freeze()
                 
-                Task.objects.create(election_id=election_id, task_id=task.id)
+                Task.objects.create(election=election, task_id=task.id)
                 task.apply_async()
                 
                 # Redirect to status page
@@ -276,23 +282,20 @@ class StatusView(View):
         
         election_id = kwargs.get('election_id')
         
+        normalized = base32cf.normalize(election_id)
+        if normalized != election_id:
+            return redirect('ea:status', election_id=normalized)
+        
         try:
-            normalized = base32cf.normalize(election_id)
-        except (TypeError, ValueError):
+            election = Election.objects.get(id=election_id)
+        except Election.DoesNotExist:
             election = None
-        else:
-            if normalized != election_id:
-                return redirect('ea:status', election_id=normalized)
-            try:
-                election = Election.objects.get(id=election_id)
-            except Election.DoesNotExist:
-                election = None
         
         if not election:
            return redirect(reverse('ea:home') + '?error=id')
         
-        abb_url = urljoin(DEMOS_URL['abb'], quote("results/%s/" % election_id))
-        bds_url = urljoin(DEMOS_URL['bds'], quote("manage/%s/" % election_id))
+        abb_url = urljoin(config.URL['abb'], quote("results/%s/" % election_id))
+        bds_url = urljoin(config.URL['bds'], quote("manage/%s/" % election_id))
         
         context = {
             'abb_url': abb_url,
@@ -315,7 +318,9 @@ class StatusView(View):
         
         try: # Return election creation progress
             
-            celery = Task.objects.get(election_id=election_id)
+            election = Election.objects.get(id=election_id)
+            
+            celery = Task.objects.get(election=election)
             task = AsyncResult(str(celery.task_id))
             
             # Election is "working", because task is alive
@@ -332,8 +337,9 @@ class StatusView(View):
                 response['timeout'] = 500
                 response['state_message'] = _('Running...')
             elif task.state == 'SUCCESS':
+                response['state'] = enums.State.RUNNING
                 if task.result is True:
-                    response.update(current=100, total=100, state=enums.State.RUNNING)
+                    response.update(current=100, total=100)
             elif task.state == 'FAILURE':
                 response['timeout'] = 10000
                 response['state_message'] = _("Task failed: %s") % task.result
@@ -342,22 +348,20 @@ class StatusView(View):
                 response['timeout'] = 1000
                 response['state_message'] = "State: %r" % task.state
         
-        except (ValidationError, Task.DoesNotExist):
+        except Task.DoesNotExist:
             
-            try: # Return election state or invalid
-                
-                election = Election.objects.get(id=election_id)
-                
-                if election.state == enums.State.RUNNING:
-                    if timezone.now() < election.start_datetime:
-                        response['not_started'] = True
-                    elif timezone.now() > election.end_datetime:
-                        response['ended'] = True
-                
-                response['state'] = election.state
+            # Return election state or invalid
             
-            except (ValidationError, Election.DoesNotExist):
-                return http.HttpResponse(status=422)
+            if election.state == enums.State.RUNNING:
+                if timezone.now() < election.start_datetime:
+                    response['not_started'] = True
+                elif timezone.now() > election.end_datetime:
+                    response['ended'] = True
+            
+            response['state'] = election.state
+        
+        except (ValidationError, Election.DoesNotExist):
+            return http.HttpResponse(status=422)
         
         return http.JsonResponse(response)
 
@@ -411,8 +415,8 @@ class CryptoToolsView(View):
             
             elif command == 'add_decom':
                 
-                # Input is a list of 3-tuples: (b_serial, p_tag, index_list),
-                # returns 'decom'.
+                # Input is a list of 3-tuples: (b_serial, p_index,
+                # o_index_list), returns 'decom'.
                 
                 ballots = request_obj['ballots']
                 
@@ -425,14 +429,14 @@ class CryptoToolsView(View):
                     
                     decom_list = [] if lo == 0 else [decom]
                     
-                    for b_serial, p_tag, index_list in ballots[lo: hi]:
+                    for b_serial, p_index, o_index_list in ballots[lo: hi]:
                         
                         _decom_list = OptionV.objects.filter(
                             part__ballot__election__id=e_id,
                             part__ballot__serial=b_serial,
-                            part__tag=p_tag,
+                            part__index=p_index,
                             question__index=q_index,
-                            index__in=index_list,
+                            index__in=o_index_list,
                         ).values_list('decom', flat=True)
                         
                         decom_list.extend(_decom_list)
@@ -443,7 +447,7 @@ class CryptoToolsView(View):
                 
             elif command == 'complete_zk':
                 
-                # Input is a list of 3-tuples: (b_serial, p_tag, zk1_list),
+                # Input is a list of 3-tuples: (b_serial, p_index, zk1_list),
                 # where zk1_list is the list of all zk1 fields of this ballot
                 # part, in ascending index order. Returns a list of zk2 lists,
                 # in the same order.
@@ -456,13 +460,13 @@ class CryptoToolsView(View):
                 options = OptionC.objects.filter(question__election__id=e_id, \
                     question__index=q_index).count()
                 
-                for b_serial, p_tag, zk1_list in ballots:
+                for b_serial, p_index, zk1_list in ballots:
                     
                     zk1_list = [self._deserialize(zk1, crypto.ZK1) \
                         for zk1 in zk1_list]
                     
-                    zk_state_list = OptionV.objects.filter(part__tag=p_tag, \
-                        part__ballot__serial=b_serial).\
+                    zk_state_list = OptionV.objects.filter(part__index=\
+                        p_index, part__ballot__serial=b_serial).\
                         values_list('zk_state', flat=True)
                     
                     zk_list = list(zip(zk1_list, zk_state_list))

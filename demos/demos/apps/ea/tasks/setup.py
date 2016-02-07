@@ -1,5 +1,7 @@
 # File: setup.py
 
+from __future__ import division
+
 import io
 import os
 import hmac
@@ -20,6 +22,7 @@ try:
 except ImportError:
     from itertools import izip_longest as zip_longest
 
+from billiard.pool import Pool
 from multiprocessing.pool import ThreadPool
 
 from django.apps import apps
@@ -27,21 +30,21 @@ from django.utils import translation
 from django.core.files import File
 from django.utils.encoding import force_bytes
 
-from billiard.pool import Pool
-
 from celery import shared_task, current_task
 from celery.signals import worker_process_init, task_failure
 
 from demos.apps.ea.tasks import cryptotools, pdf
 from demos.apps.ea.tasks.masks import apply_mask
-from demos.apps.ea.models import Election, Task, RemoteUser
+from demos.apps.ea.models import Election, Task
 
-from demos.common.utils import api, base32cf, config, dbsetup, enums, intc
-from demos.common.utils.permutation import permute
-from demos.common.utils.hashers import PBKDF2Hasher
+from demos.common.utils import api, base32cf, dbsetup, enums, hashers, intc
 from demos.common.utils.json import CustomJSONEncoder
+from demos.common.utils.config import registry
+from demos.common.utils.permutation import permute
 
 log = logging.getLogger('demos.ea.setup')
+config = registry.get_config('ea')
+hasher = hashers.PBKDF2Hasher()
 
 @shared_task()
 def election_setup(election_obj, language):
@@ -59,18 +62,16 @@ def election_setup(election_obj, language):
     
     # Election-specific vote-token bit lengths
     
-    tag_bits = 1
+    index_bits = 1
     serial_bits = (election.ballots + 100).bit_length()
     credential_bits = config.CREDENTIAL_LEN * 8
     security_code_bits = config.SECURITY_CODE_LEN * 5
-    token_bits = serial_bits + credential_bits + tag_bits + security_code_bits
-    pad_bits = int(math.ceil(token_bits / 5.0) * 5 - token_bits)
+    token_bits = serial_bits + credential_bits + index_bits + security_code_bits
+    pad_bits = int(math.ceil(token_bits / 5)) * 5 - token_bits
     
     # Initialize common utilities
     
-    hasher = PBKDF2Hasher()
     rand = random.SystemRandom()
-    
     builder = pdf.BallotBuilder(election_obj)
     
     process_pool = Pool()
@@ -101,24 +102,16 @@ def election_setup(election_obj, language):
     pkey = crypto.PKey()
     pkey.generate_key(crypto.TYPE_RSA, config.PKEY_BIT_LEN)
     
-    pkey_passphrase = os.urandom(int(3 * config.PKEY_PASSPHRASE_LEN // 4))
-    pkey_passphrase = b64encode(pkey_passphrase)
-    
-    pkey_dump = crypto.dump_privatekey(crypto.FILETYPE_PEM, pkey, \
-        config.PKEY_PASSPHRASE_CIPHER, pkey_passphrase)
-    pkey_file = File(io.BytesIO(pkey_dump), name='pkey.pem')
-    
-    election.pkey_file = pkey_file
-    election.pkey_passphrase = pkey_passphrase
-    election.save(update_fields=['pkey_file', 'pkey_passphrase'])
-    
     # Generate a new X.509 certificate
     
     cert = crypto.X509()
     cert.set_version(3)
     cert.set_serial_number(base32cf.decode(election.id))
-    cert.set_notBefore(election.start_datetime.strftime('%Y%m%d%H%M%S%z'))
-    cert.set_notAfter(election.end_datetime.strftime('%Y%m%d%H%M%S%z'))
+    
+    time_fmt = '%Y%m%d%H%M%S%z'
+    
+    cert.set_notBefore(force_bytes(election.start_datetime.strftime(time_fmt)))
+    cert.set_notAfter(force_bytes(election.end_datetime.strftime(time_fmt)))
     if ca_cert:
         cert.set_issuer(ca_cert.get_subject())
         cert.set_subject(ca_cert.get_subject())
@@ -127,7 +120,7 @@ def election_setup(election_obj, language):
     if ca_pkey:
         cert.sign(ca_pkey, 'sha256')
     
-    election_obj['x509_cert'] = \
+    election_obj['cert'] = \
         crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode()
     
     # Generate question keys and calculate max_options
@@ -200,7 +193,7 @@ def election_setup(election_obj, language):
                 '__list_Part__': [],
             }
             
-            for tag, crypto_qo_list in zip(['A', 'B'], crypto_sqo_list):
+            for p_index, crypto_qo_list in zip(['A', 'B'], crypto_sqo_list):
                 
                 # Generate a random security code and compute its hash value and
                 # its hash's hash value. The client will use the first hash to
@@ -212,25 +205,32 @@ def election_setup(election_obj, language):
                 hash, salt, _ = hasher.encode(security_code, split=True)
                 security_code_hash2 = hasher.encode(hash, salt[::-1])
                 
-                l_votecode_salt = hasher.salt()
-                l_votecode_iterations = hasher.iterations
+                # Prepare long votecodes' key, salt and iterations (if enabled)
+                
+                if not election.long_votecodes:
+                    
+                    l_votecode_salt = ''
+                    l_votecode_iterations = None
+                    
+                else:
+                    
+                    key = base32cf.decode(security_code)
+                    bytes = int(math.ceil(key.bit_length() / 8))
+                    key = intc.to_bytes(key, bytes, 'big')
+                    
+                    l_votecode_salt = hasher.salt()
+                    l_votecode_iterations = hasher.iterations
+                
+                # Pack ballot part's data
                 
                 part_obj = {
-                    'tag': tag,
+                    'index': p_index,
                     'security_code': security_code,
                     'security_code_hash2': security_code_hash2,
                     'l_votecode_salt': l_votecode_salt,
                     'l_votecode_iterations': l_votecode_iterations,
                     '__list_Question__': [],
                 }
-                
-                # Compute long votecodes' key only once per ballot part
-                
-                if election.long_votecodes:
-                    
-                    key = base32cf.decode(security_code)
-                    bytes = int(math.ceil(key.bit_length() / 8.0))
-                    key = intc.to_bytes(key, bytes, 'big')
                 
                 for q_index, crypto_o_list in enumerate(crypto_qo_list):
                     
@@ -274,7 +274,7 @@ def election_setup(election_obj, language):
                             # part. All votecode hashes share the same salt.
                             
                             msg = credential_int + optionv_id
-                            bytes = int(math.ceil(msg.bit_length() / 8.0))
+                            bytes = int(math.ceil(msg.bit_length() / 8))
                             msg = intc.to_bytes(msg, bytes, 'big')
                             
                             hmac_obj = hmac.new(key, msg, hashlib.sha256)
@@ -290,7 +290,7 @@ def election_setup(election_obj, language):
                         
                         # Generate receipt (receipt_data is an integer)
                         
-                        bytes = int(math.ceil(receipt_data.bit_length() / 8.0))
+                        bytes = int(math.ceil(receipt_data.bit_length() / 8))
                         receipt_data = intc.to_bytes(receipt_data, bytes, 'big')
                         
                         receipt_data = crypto.sign(pkey, receipt_data, 'sha256')
@@ -329,17 +329,17 @@ def election_setup(election_obj, language):
                 security_code = base32cf.decode(other_part_obj['security_code'])
                 
                 # The vote token consists of two parts. The first part is the
-                # ballot's serial number and credential and the part's tag,
+                # ballot's serial number and credential and the part's index,
                 # XORed with the second part. The second part is the other
                 # part's security code, bit-inversed. This is done so that the
                 # tokens of the two parts appear to be completely different.
                 
-                p1 = (serial << (tag_bits + credential_bits)) | \
-                    (intc.from_bytes(credential, 'big') << tag_bits) | i
+                p1 = (serial << (index_bits + credential_bits)) | \
+                    (intc.from_bytes(credential, 'big') << index_bits) | i
                 
                 p2 = (~security_code) & ((1 << security_code_bits) - 1)
                 
-                p1_len = serial_bits + credential_bits + tag_bits
+                p1_len = serial_bits + credential_bits + index_bits
                 p2_len = security_code_bits
                 
                 for i in range(0, p1_len, p2_len):
@@ -411,7 +411,7 @@ def election_setup(election_obj, language):
                     # the question's index, converted back to an integer.
                     
                     int_ = base32cf.decode(security_code) + i
-                    bytes_ = int(math.ceil(int_.bit_length() / 8.0))
+                    bytes_ = int(math.ceil(int_.bit_length() / 8))
                     value = hashlib.sha256(intc.to_bytes(int_, bytes_, 'big'))
                     p_index = intc.from_bytes(value.digest(), 'big')
                     
@@ -419,8 +419,8 @@ def election_setup(election_obj, language):
                     
                     # Set the indices in proper order
                     
-                    for index, optionv in enumerate(optionv_list):
-                        optionv['index'] = index
+                    for o_index, optionv in enumerate(optionv_list):
+                        optionv['index'] = o_index
                     
                     question_obj['__list_OptionV__'] = optionv_list
         
@@ -466,6 +466,10 @@ def election_setup(election_obj, language):
         api_session=api_session, url_path='manage/update/')
     
     thread_pool.map(api_update1, ['abb', 'vbb', 'bds'])
+    
+    # Delete celery task
+    # task = Task.objects.get(election=election)
+    # task.delete()
     
     translation.deactivate()
     return progress

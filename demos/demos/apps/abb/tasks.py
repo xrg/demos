@@ -1,21 +1,28 @@
 # File: tasks.py
 
+from __future__ import division
+
+import io
 import json
 import hashlib
 import logging
 
 from base64 import b64decode
 from celery import shared_task
+
 from django.apps import apps
+from django.core.files import File
 
 from demos.apps.abb.models import Election, Question, Ballot, Part, OptionV, \
     Task
 
-from demos.common.utils import api, config, crypto, enums, intc
+from demos.common.utils import api, crypto, enums, intc
 from demos.common.utils.json import CustomJSONEncoder
+from demos.common.utils.config import registry
 
 logger = logging.getLogger(__name__)
 app_config = apps.get_app_config('abb')
+config = registry.get_config('abb')
 
 
 @shared_task
@@ -34,7 +41,7 @@ def tally_protocol(election_id):
     
     for ballot in ballot_qs.iterator():
         coins += '%d' % (1 if ballot.part_set.\
-            filter(tag='B', optionv__voted=True).exists() else 0)
+            filter(index='B', optionv__voted=True).exists() else 0)
     
     coins = coins.encode('ascii')
     coins = hashlib.sha256(coins).hexdigest()
@@ -54,7 +61,7 @@ def tally_protocol(election_id):
         
         # 'add_com' task
         
-        com = None
+        combined_com = None
         
         for lo in range(100, election.ballots + 100, config.BATCH_SIZE):
             hi = lo + min(config.BATCH_SIZE, election.ballots + 100 - lo)
@@ -66,7 +73,7 @@ def tally_protocol(election_id):
             
             # Get com fields of the current ballot slice
             
-            com_list = [] if com is None else [com]
+            com_list = [] if combined_com is None else [combined_com]
             
             for part in part_qs.iterator():
                 
@@ -86,25 +93,25 @@ def tally_protocol(election_id):
             }
             
             r = ea_session.post('command/cryptotools/add_com/', data)
-            com = r.json()
+            combined_com = r.json()
         
         # 'add_decom' task
         
         ballots = []
         
         # Grab all ballot parts that have options marked as 'voted'
-            
+        
         part_qs = Part.objects.filter(ballot__election=election, \
-            ballot__serial__range=(lo, hi-1), optionv__voted=True).distinct()
+            optionv__voted=True).distinct()
         
         # Prepare 'ballots' data structure
         
         for part in part_qs.iterator():
             
-            index_list = OptionV.objects.filter(question=question, \
+            o_index_list = OptionV.objects.filter(question=question, \
                 part=part, voted=True).values_list('index', flat=True)
             
-            ballots.append((part.ballot.serial, part.tag, list(index_list)))
+            ballots.append((part.ballot.serial, part.index, list(o_index_list)))
         
         # Send request
         
@@ -117,36 +124,41 @@ def tally_protocol(election_id):
         }
         
         r = ea_session.post('command/cryptotools/add_decom/', data)
-        decom = r.json()
+        combined_decom = r.json()
         
-        # 'verify_com' task
+        # 'verify_com' task, iff at least one ballot had been cast
+        # An empty decom cannot be verified (False is always returned)
         
-        _request = request.copy()
-        _request['com'] = com
-        _request['decom'] = decom
+        if ballots:
         
-        data = {
-            'data': json.dumps(_request, separators=(',', ':'), \
-                cls=CustomJSONEncoder)
-        }
+            _request = request.copy()
+            _request['com'] = combined_com
+            _request['decom'] = combined_decom
+            
+            data = {
+                'data': json.dumps(_request, separators=(',', ':'), \
+                    cls=CustomJSONEncoder)
+            }
+            
+            r = ea_session.post('command/cryptotools/verify_com/', data)
+            verified = r.json()
+            
+            if not verified:
+                logger.error('verify_com failed (election id: %s)'% election.id)
         
-        r = ea_session.post('command/cryptotools/verify_com/', data)
-        verified = r.json()
+        # Save question's combined_com and combined_decom fields
         
-        # Save question's com, decom and verified fields
+        question.combined_com = combined_com
+        question.combined_decom = combined_decom
         
-        question.com = com
-        question.decom = decom
-        question.verified = verified
+        question.save(update_fields=['combined_com', 'combined_decom'])
         
-        question.save(update_fields=['com', 'decom', 'verified'])
-        
-        # Now, count option votes
+        # Now, calculate votes
         
         ballots = election.ballots
         optionc_qs = question.optionc_set.all()
         
-        decom = b64decode(decom)
+        decom = b64decode(combined_decom)
         
         pb_decom = crypto.Decom()
         pb_decom.ParseFromString(decom)
@@ -157,7 +169,7 @@ def tally_protocol(election_id):
         for optionc in optionc_qs:
             
             votes = msg % (ballots + 1)
-            msg = int((msg - votes) // (ballots + 1))
+            msg = (msg - votes) // (ballots + 1)
             
             optionc.votes = votes
             optionc.save(update_fields=['votes'])
@@ -190,7 +202,7 @@ def tally_protocol(election_id):
                 zk1_list = OptionV.objects.filter(part=part, \
                     question=question).values_list('zk1', flat=True)
                 
-                ballots.append((part.ballot.serial, part.tag, list(zk1_list)))
+                ballots.append((part.ballot.serial, part.index, list(zk1_list)))
             
             # Send request
             
@@ -215,10 +227,39 @@ def tally_protocol(election_id):
                     optionv.zk2 = zk2
                     optionv.save(update_fields=['zk2'])
     
+    # Import the ExportView here to avoid circular dependency error
+    
+    from demos.apps.abb.views import ExportView
+    
+    export = ExportView._export
+    encoder = ExportView._CustomJSONEncoder
+    
+    del ExportView
+    
+    # Create an empty file and open it for writing, workaround for:
+    # https://code.djangoproject.com/ticket/13809
+    
+    export_file = election.export_file
+    
+    export_file.save('export.json', File(io.BytesIO(b'')), save=False)
+    export_file.close()
+    
+    export_file.file = export_file.storage.open(export_file.name, 'w')
+    
+    # Generate the json file
+    
+    # TODO: iterate over ballots and manually generate the file, otherwise a lot
+    # of resources will be required for elections with many ballots and options
+    
+    data = export(['election'], {'Election': {'id': election_id}}, {}, 'data')
+    json.dump(data, export_file, indent=4, sort_keys=True, cls=encoder)
+    
+    export_file.close()
+    
     # Update election state
     
     election.state = enums.State.COMPLETED
-    election.save(update_fields=['state'])
+    election.save(update_fields=['state', 'export_file'])
     
     request = {
         'e_id': election.id,
@@ -234,6 +275,6 @@ def tally_protocol(election_id):
     
     # Delete celery task entry from the db
     
-    task = Task.objects.get(election_id=election.id)
+    task = Task.objects.get(election=election)
     task.delete()
 
