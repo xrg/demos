@@ -1,8 +1,11 @@
 # File: __init__.py
 
+import os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demos.settings')
+
 from django.conf import settings
 
-if set(base.DEMOS_APPS).intersection(['ea', 'bds', 'abb']):
+if set(settings.DEMOS_APPS).intersection(['ea', 'bds', 'abb']):
     
     import json
     
@@ -13,5 +16,6 @@ if set(base.DEMOS_APPS).intersection(['ea', 'bds', 'abb']):
     register('custom-json', partial(json.dumps, cls=CustomJSONEncoder), \
         json.loads, 'application/x-custom-json', 'utf-8')
     
+    from .celeryapp import app as celery_app
 
 #eof
