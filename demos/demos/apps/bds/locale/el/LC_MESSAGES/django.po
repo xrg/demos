@@ -28,3 +28,7 @@ msgstr "Αρχική"
 #: demos/apps/bds/templates/bds/base.html:19
 msgid "Ballot Management"
 msgstr "Διαχείριση Ψηφοδελτίων"
+
+#: demos/apps/bds/templates/bds/home.html:14
+msgid "Welcome to the DEMOS e-voting system"
+msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"

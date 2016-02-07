@@ -4,18 +4,17 @@
 # P. Christeas <xrg@linux.gr>, 2015.
 msgid ""
 msgstr ""
-"Project-Id-Version: \n"
+"Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-11-18 05:36+0000\n"
-"PO-Revision-Date: 2015-11-18 07:41+0200\n"
-"Last-Translator: P. Christeas <xrg@linux.gr>\n"
-"Language-Team: Greek <>\n"
-"Language: el\n"
+"POT-Creation-Date: 2015-11-24 02:15+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Lokalize 1.5\n"
 
 #: demos/apps/ea/apps.py:14 demos/apps/ea/templates/ea/base.html:7
 #: demos/apps/ea/templates/ea/base.html:12
@@ -445,6 +444,10 @@ msgstr "Εκτελείται..."
 #, python-format
 msgid "Task failed: %s"
 msgstr "Απέτυχε: %s"
+
+#: demos/apps/ea/templates/ea/center.html:24
+msgid "ID"
+msgstr "Αναγνωριστικό"
 
 #~ msgid "Type the question here"
 #~ msgstr "Πληκτρολογήστε το ερώτημα εδώ"

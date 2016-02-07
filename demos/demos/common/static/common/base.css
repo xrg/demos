@@ -20,25 +20,25 @@ body {
 
 @media (min-width: 1200px) {
     body {
-        background-image: url("images/background/1600.jpg");
+        background-image: url("images/background2/1600.jpg");
     }
 }
 
 @media (min-width: 768px) and (max-width: 1199px) {
     body {
-        background-image: url("images/background/1199.jpg");
+        background-image: url("images/background2/1199.jpg");
     }
 }
 
 @media (min-width: 480px) and (max-width: 767px) {
     body {
-        background-image: url("images/background/767.jpg");
+        background-image: url("images/background2/767.jpg");
     }
 }
 
 @media (max-width: 479px) {
     body {
-        background-image: url("images/background/479.jpg");
+        background-image: url("images/background2/479.jpg");
     }
 }
 

@@ -125,3 +125,7 @@ msgstr "Αποτελέσματα"
 #: demos/apps/abb/templates/abb/results.html:27
 msgid "The results will be announced after the election has ended."
 msgstr "Τα αποτελέσματα θα ανακοινωθούν μετά την ολοκλήρωση της ψηφοφορίας."
+
+#: demos/apps/abb/templates/abb/home.html:14
+msgid "Welcome to the DEMOS e-voting system"
+msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"

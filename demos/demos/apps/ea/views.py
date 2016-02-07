@@ -558,7 +558,16 @@ class CenterView(View):
     template_name = 'ea/center.html'
     
     def get(self, request):
-                # FIXME!
-                return http.HttpResponse(status=404)
 
-#eof
+        
+        abb_url = urljoin(config.URL['abb'], 'results/')
+        bds_url = urljoin(config.URL['bds'], 'manage/')
+        
+        context = {
+            'abb_url': abb_url,
+            'bds_url': bds_url,
+            'elections': Election.objects.all(),
+        }
+
+        return render(request, self.template_name, context)
+
