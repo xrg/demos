@@ -28,22 +28,24 @@ class IntEnumField(models.SmallIntegerField):
         
         if value is None:
             return value
-        
+
         try:
-            value = self.cls(value)
-        except Exception as e:
+            self.cls._check(value)
+        except ValueError, e:
             raise ValidationError(e, code='invalid')
         
         return value
     
     def to_python(self, value):
         
-        if value is None or isinstance(value, self.cls):
+        if value is None:
             return value
         
         try:
-            value = self.cls(int(value))
-        except Exception as e:
+            if isinstance(value, string_types):
+                value = int(value)
+            self.cls._check(value)
+        except ValueError, e:
             raise ValidationError(e, code='invalid')
         
         return value
@@ -53,7 +55,7 @@ class IntEnumField(models.SmallIntegerField):
         if value is None or type(value) == int:
             return value
         
-        return value.value
+        raise TypeError(type(value))
     
     def value_to_string(self, obj):
         

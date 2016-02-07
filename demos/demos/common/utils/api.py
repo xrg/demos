@@ -12,7 +12,7 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.middleware import csrf
 
-from demos.settings import DEMOS_URL
+from demos.settings import DEMOS_API_URL
 
 import logging
 from six import string_types
@@ -20,15 +20,14 @@ from six import string_types
 class Session:
     _log = logging.getLogger('demos.remoteSession')
     
-    def __init__(self, usr_from, server, app_config):
+    def __init__(self, server, app_config):
         
         self.s = requests.Session()
         
-        assert app_config.label == usr_from
-        self.username = usr_from
+        self.username = app_config.label
         self.password = app_config.get_model('RemoteUser').\
             objects.get(username=server).password
-        self.url = urljoin(DEMOS_URL[server], 'api/')
+        self.url = urljoin(DEMOS_API_URL[server], 'api/')
         
         self.login()
     
@@ -47,7 +46,7 @@ class Session:
         payload = {
             'username': self.username,
             'password': self.password,
-            'csrfmiddlewaretoken': self.s.cookies['csrftoken'],
+            'csrfmiddlewaretoken': self.s.cookies.get('csrftoken', False),
         }
         
         r = self.s.post(url, data=payload, verify=True)
@@ -67,10 +66,12 @@ class Session:
             r = self.s.get(url)
             r.raise_for_status()
             
-            data['csrfmiddlewaretoken'] = self.s.cookies['csrftoken']
+            data['csrfmiddlewaretoken'] = self.s.cookies.get('csrftoken', False)
             
             r = self.s.post(url, data=data, files=files, verify=True)
             r.raise_for_status()
+            
+            return r
         
         except requests.exceptions.HTTPError as e:
             if r.status_code == requests.codes.unauthorized and _retry_login:

@@ -38,6 +38,8 @@ function updateProgress() {
             
             if (data.state == state_list.ERROR) {
                 $(".alert-danger").removeClass("hidden");
+                if (data.state_message)
+                    $("#alert-message").text(data.state_message);
                 return;
             }
             
@@ -51,7 +53,7 @@ function updateProgress() {
             glyphicon_lt.removeClass("hidden").addClass("glyphicon-ok");
             glyphicon_gt.addClass("hidden");
             
-            glyphicon.removeClass("hidden").addClass("glyphicon-option-horizontal");
+            glyphicon.removeClass("hidden").addClass("glyphicon-" + (data.state != state_list.COMPLETED ? "option-horizontal" : "ok"));
             
             // Show a progress bar if ballots are being generated
             
@@ -70,16 +72,19 @@ function updateProgress() {
                 progress_bar.children("span").text(value_css);
             }
             
+            state_item.attr('title', data.state_message || '');
+
             var timeout;
-            
+
             if (data.state == state_list.WORKING)
-                timeout = 500;
+                timeout = data.timeout || 500;
             else if (data.state < state_list.WORKING)
                 timeout = 5000;
             else if (data.state > state_list.WORKING)
                 timeout = 15000;
-            
-            window.setTimeout(updateProgress, timeout);
+
+            if (data.state != state_list.COMPLETED)
+                window.setTimeout(updateProgress, timeout);
         },
         error: function(jqXHR, textStatus, errorThrown) {
             

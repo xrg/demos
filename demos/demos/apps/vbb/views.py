@@ -7,13 +7,6 @@ import requests
 from six import string_types
 
 from base64 import b64encode
-try:
-    from enum import IntEnum, unique
-except ImportError:
-    class IntEnum:
-        pass
-    def unique(fn):
-        return fn
 
 try:
     from urllib.parse import urljoin, quote
@@ -60,8 +53,7 @@ class VoteView(View):
     class Error(Exception):
         pass
     
-    @unique
-    class State(IntEnum):
+    class State(enums.IntEnumC):
         INVALID_ELECTION_ID = 1
         INVALID_VOTE_TOKEN = 2
         ELECTION_NOT_STARTED = 3
@@ -254,7 +246,7 @@ class VoteView(View):
             now = timezone.now()
             
             context = {
-                'state': e.args[0].value,
+                'state': e.args[0],
                 'election': e.args[1] if args_len >= 2 else None,
                 'questions': e.args[2] if args_len >= 3 else None,
                 'serial': str(e.args[3].serial) if args_len >= 4 else None,
@@ -270,7 +262,7 @@ class VoteView(View):
             security_code_hash2_split = part1.security_code_hash2.split('$')
             
             context = {
-                'state': VoteView.State.NO_ERROR.value,
+                'state': VoteView.State.NO_ERROR,
                 'election': election,
                 'questions': question_qs,
                 'serial': str(ballot.serial),
@@ -286,7 +278,7 @@ class VoteView(View):
         
         context.update({
             'timezone_now': now,
-            'State': { s.name: s.value for s in VoteView.State },
+            'State': VoteView.State.get_valueitems(prefix=False),
         })
         
         csrf.get_token(request)
@@ -306,7 +298,7 @@ class VoteView(View):
              election, question_qs, ballot, part_qs, credential, \
                 security_code,_ = VoteView._parse_input(election_id, vote_token)
         except VoteView.Error as e:
-            return http.JsonResponse({'error': e.args[0].value}, status=422)
+            return http.JsonResponse({'error': e.args[0]}, status=422)
         
         part1, part2 = part_qs
         error = { 'error': VoteView.State.REQUEST_ERROR }
@@ -413,7 +405,7 @@ class VoteView(View):
                 
                 # Send vote data to the abb server
                 
-                abb_session = api.Session('vbb', 'abb', app_config)
+                abb_session = api.Session('abb', app_config)
                 
                 data = {
                     'votedata': json.dumps({
@@ -435,7 +427,7 @@ class VoteView(View):
                 return http.JsonResponse(error, status=422)
             
             except VoteView.Error as e:
-                return http.JsonResponse({'error': e.args[0].value}, status=422)
+                return http.JsonResponse({'error': e.args[0]}, status=422)
             
             except Exception:
                 logger.exception('VoteView: Unexpected exception')

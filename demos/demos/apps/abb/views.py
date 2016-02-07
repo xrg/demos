@@ -6,13 +6,15 @@ import math
 import hashlib
 import logging
 
+from io import BytesIO
 from base64 import b64decode
+from datetime import timedelta
+from collections import OrderedDict
+
 try:
     from itertools import zip_longest
 except ImportError:
     from itertools import izip_longest as zip_longest
-
-from collections import OrderedDict
 
 from google.protobuf import message
 
@@ -21,20 +23,23 @@ from django.db import transaction
 from django.apps import apps
 from django.utils import timezone
 from django.conf.urls import include, url
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.core.files import File
 from django.middleware import csrf
 from django.views.generic import View
 from django.db.models.query import QuerySet
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.utils.decorators import method_decorator
+from django.utils.dateparse import parse_datetime
 from django.core.urlresolvers import reverse
 from django.core.serializers.json import DjangoJSONEncoder
 
-from demos.apps.abb.models import Election, Question, Ballot, Part, \
-    OptionV, OptionC
-
-from demos.common.utils import api, base32cf, config, dbsetup, enums, intc, hashers, protobuf
+from demos.apps.abb.tasks import tally_protocol
+from demos.apps.abb.models import Election, Question, Ballot, Part, OptionV, \
+    Task
+from demos.common.utils import api, base32cf, config, dbsetup, enums, intc, \
+    hashers, protobuf
 from demos.common.utils.permutation import permute_ori
 
 
@@ -82,6 +87,7 @@ class AuditView(View):
             'participants': str(participants),
         }
         
+        csrf.get_token(request)
         return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
@@ -102,48 +108,58 @@ class AuditView(View):
             part_qs = Part.objects.filter(ballot=ballot);
             question_qs = Question.objects.filter(election=election);
             
-            # 
+            # Get ballot's api export url
             
-            url_kwargs = {
+            url_args = {
                 'Election__id': election.id,
                 'Ballot__serial': ballot.serial,
             }
             
-            url = reverse('api:export:election:ballot:get', kwargs=url_kwargs)
+            url = reverse('abb-api:export:election:ballot:get', kwargs=url_args)
             
-            # 
+            # Common values
             
             vote = None
+            args = ['index','votecode','voted'] if not election.long_votecodes \
+                else ['index','l_votecode','voted','l_votecode_hash']
             
-            # 
+            # Iterate over parts, questions and options to build the response
             
             parts = []
             
             for p in part_qs:
+                
+                extra_args = tuple() if not election.long_votecodes \
+                    else (p.l_votecode_salt, p.l_votecode_iterations)
                 
                 questions = []
                 
                 for q in question_qs:
                     
                     optionv_qs = OptionV.objects.filter(part=p, question=q)
-                    options = list(optionv_qs.values_list('index','votecode','voted'))
+                    options = list(optionv_qs.values_list(*args))
                     
                     if p.security_code:
                         
+                        # If a ballot part has a security code, the other ballot
+                        # part was used by the client to vote
+                        
                         vote = 'A' if p.tag != 'A' else 'B'
                         
+                        # Restore options' correct order
+                        
                         int_ = base32cf.decode(p.security_code) + q.index
-                        bytes_ = math.ceil(int_.bit_length() / 8.0)
-                        value = hashlib.sha256(intc.to_bytes(int_, bytes_, 'big'))
+                        bytes_ = int(math.ceil(int_.bit_length() / 8.0))
+                        value = hashlib.sha256(intc.to_bytes(int_,bytes_,'big'))
                         index = intc.from_bytes(value.digest(), 'big')
                         
                         options = permute_ori(options, index)
                     
                     questions.append((q.index, options))
                 
-                parts.append((p.tag, questions))
+                parts.append((p.tag, questions) + extra_args)
             
-            # 
+            # Return response
             
             response = {
                 'url': url,
@@ -162,7 +178,37 @@ class ResultsView(View):
     template_name = 'abb/results.html'
     
     def get(self, request, *args, **kwargs):
-        return render(request, self.template_name, {})
+        
+        election_id = kwargs.get('election_id')
+        
+        try:
+            normalized = base32cf.normalize(election_id)
+        except (AttributeError, TypeError, ValueError):
+            pass
+        else:
+            if normalized != election_id:
+                return redirect('abb:results', election_id=normalized)
+            try:
+                election = Election.objects.get(id=election_id)
+            except Election.DoesNotExist:
+                return redirect(reverse('abb:home') + '?error=id')
+            else:
+                questions = Question.objects.filter(election=election)
+        
+        participants = Ballot.objects.filter(election=election, \
+            part__optionv__voted=True).distinct().count() if election else 0
+        
+        questions = questions.annotate(Sum('optionc__votes'))
+        
+        context = {
+            'election': election,
+            'questions': questions,
+            'participants': str(participants),
+            'State': enums.State.get_valueitems(),
+        }
+        
+        csrf.get_token(request)
+        return render(request, self.template_name, context)
 
 
 class SetupView(View):
@@ -182,7 +228,24 @@ class SetupView(View):
             election_obj = json.loads(request.POST['payload'])
             
             if task == 'election':
+                
+                cert_dump = election_obj['x509_cert'].encode()
+                cert_file = File(BytesIO(cert_dump), name='cert.pem')
+                election_obj['x509_cert'] = cert_file
+                
                 dbsetup.election(election_obj, app_config)
+                
+                election_id = election_obj['id']
+                end_datetime = parse_datetime(election_obj['end_datetime'])
+                
+                scheduled_time = end_datetime + timedelta(seconds=5)
+                
+                task = tally_protocol.s(election_id)
+                task.freeze()
+                
+                Task.objects.create(election_id=election_id, task_id=task.id)
+                task.apply_async(eta=scheduled_time)
+                
             elif task == 'ballot':
                 dbsetup.ballot(election_obj, app_config)
             else:

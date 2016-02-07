@@ -33,6 +33,7 @@ Requires:       python-psycopg2
 Requires:       python-requests
 Requires:       python-six >= 1.9.0
 Requires:       python-celery
+Requires:       gettext
 %if %{with_apache}
 %if %{_target_vendor} == mageia
 Requires:       apache-mod_wsgi
@@ -64,6 +65,11 @@ Requires:       python-protobuf >= 3.0
 Requires:       python-qrcode
 Requires:       python-reportlab
 Requires:       liberation-sans-fonts, liberation-serif-fonts, liberation-mono-fonts
+%if %{_target_vendor} == mageia
+Requires:       python-openssl
+%else
+Requires:       pyOpenSSL
+%endif
 
 %package bds
 Summary:        Ballot Distribution Server for Secure Voting
@@ -123,6 +129,9 @@ popd
 %__rm -rf %{buildroot}
 install -d %{buildroot}%{app_bindir}/
 install demos-crypto/src/demos-crypto %{buildroot}%{app_bindir}/
+install -d %{buildroot}%{_tmpfilesdir}/
+cp demos-crypto/tmpfiles.conf %{buildroot}%{_tmpfilesdir}/demos-voting-crypto.conf
+mkdir -p %{buildroot}/run/demos-voting/
 
 install -d %{buildroot}%{app_dir}
 cp -r demos/demos %{buildroot}%{app_dir}
@@ -133,6 +142,8 @@ install -d %{buildroot}%{_sysconfdir}/%{name}/
 rm -f %{buildroot}%{app_dir}/settings/base.py?
 mv %{buildroot}%{app_dir}/demos/settings/base.py %{buildroot}%{_sysconfdir}/%{name}/settings.py
 ln -s %{_sysconfdir}/%{name}/settings.py %{buildroot}%{app_dir}/demos/settings/base.py
+
+install -d %{buildroot}%{_var}/spool/demos-voting/
 
 %if %{with_apache}
 # Configuration for Apache and its mod_wsgi
@@ -201,12 +212,35 @@ Type=simple
 User=apache
 RestartSec=10
 TimeoutStartSec=1min
-ExecStart=%{app_bindir}/demos-crypto -s unix /tmp/demos-ea-crypto.sock
+ExecStart=%{app_bindir}/demos-crypto -s unix /run/demos-voting/demos-crypto.sock -t 8
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 
 EOF
+
+cat '-' <<EOF > %{buildroot}%{_unitdir}/demos-voting-celery-ea.service
+
+[Unit]
+Description=Celery workers for Demos voting
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=apache
+Group=apache
+WorkingDirectory=%{app_dir}
+ExecStart=%{_bindir}/celery worker -A demos --loglevel=INFO -C -q
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+pushd %{buildroot}%{_unitdir}
+        cp demos-voting-celery-ea.service demos-voting-celery-abb.service
+        cp demos-voting-celery-ea.service demos-voting-celery-bds.service
+popd
 
 
 %post ea
@@ -251,6 +285,7 @@ cd %{app_dir}
 %doc demos/LICENSE demos/README
 %dir %{app_dir}/demos
 %dir %attr(0755,root,root) %{_sysconfdir}/%{name}/
+%dir %attr(0750,apache,apache) %{_var}/spool/demos-voting/
 %config(noreplace) %attr(0755,root,root) %{_sysconfdir}/%{name}/settings.py
 %exclude %{_sysconfdir}/%{name}/settings.py?
 %{app_dir}/demos/__init__.py*
@@ -266,14 +301,19 @@ cd %{app_dir}
 
 %files abb
 %{app_dir}/demos/apps/abb/
+%config %{_unitdir}/demos-voting-celery-abb.service
 
 %files ea
 %{app_bindir}/demos-crypto
+%dir %attr(0700,apache,apache) /run/demos-voting/
+%{_tmpfilesdir}/demos-voting-crypto.conf
 %{app_dir}/demos/apps/ea/
 %config %{_unitdir}/demos-voting-crypto.service
+%config %{_unitdir}/demos-voting-celery-ea.service
 
 %files bds
 %{app_dir}/demos/apps/bds/
+%config %{_unitdir}/demos-voting-celery-bds.service
 
 %files vbb
 %{app_dir}/demos/apps/vbb/

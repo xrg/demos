@@ -1,10 +1,13 @@
 # File: pdf.py
 
+from __future__ import division
+
 import math
 
 from os import path
 from io import BytesIO
 from subprocess import check_output
+
 try:
     from urllib.parse import urljoin, quote
 except ImportError:
@@ -24,6 +27,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, \
 
 from demos.common.utils import base32cf, config
 from demos.settings import DEMOS_URL
+
 
 
 class BallotBuilder:
@@ -55,8 +59,10 @@ class BallotBuilder:
             cmd = ["fc-list", "-f", "%{file}",
                 ":style={0}:family={1}".format(ttf_style, ttf_family)]
             ttf_path = check_output(cmd, universal_newlines=True)
+            
             if not ttf_path:
-                            raise EnvironmentError("Missing font for: %s-%s" % (ttf_family, ttf_style))
+                raise EnvironmentError("Missing font for: %s-%s" % \
+                    (ttf_family, ttf_style))
             
             registerFont(TTFont(ttf_name, ttf_path))
             ttf_dict[ttf_style] = ttf_name
@@ -156,11 +162,11 @@ class BallotBuilder:
     font_lg = 14
     
     spacer = 7.5
-    cell_padding = 12
+    cell_padding = 12.0
     
     page_width, page_height = pagesize
-    page_width -= w_margin * 2
-    page_height -= h_margin * 2
+    page_width -= w_margin * 2.0
+    page_height -= h_margin * 2.0
     
     img_size = int(page_width // 4.5)
     font_size_tag = int(img_size)
@@ -170,12 +176,15 @@ class BallotBuilder:
     table_opt_gap = int(page_width // 50)
     
     long_vc_split = 4
-    long_vc_hyphens = int(math.ceil(config.VOTECODE_LEN / long_vc_split)) - 1
+    long_vc_hyphens = int(math.ceil(float(config.VOTECODE_LEN) / long_vc_split)) - 1
     
     # TrueType fonts
     
-    sans_font_dict = _load_ttf_family.__func__('Liberation Sans', ['Regular','Bold'])
-    mono_font_dict = _load_ttf_family.__func__('Liberation Mono', ['Regular','Bold'])
+    sans_font_dict = _load_ttf_family.__func__('Liberation Sans', \
+        ['Regular', 'Bold'])
+    
+    mono_font_dict = _load_ttf_family.__func__('Liberation Mono', \
+        ['Regular', 'Bold'])
     
     sans_regular = sans_font_dict['Regular']
     sans_bold = sans_font_dict['Bold']
@@ -339,7 +348,7 @@ class BallotBuilder:
             self.sans_bold, self.font_lg)]) + self.cell_padding
         
         self.top_value_width = (self.page_width -
-            (2 * self.top_text_width + self.table_top_gap)) / 2
+            (2.0 * self.top_text_width + self.table_top_gap)) / 2.0
         
         self.vc_width = max([stringWidth(self.vc_text, self.sans_bold,
             self.font_sm), max([stringWidth(c, self.mono_regular, self.font_sm)
@@ -352,10 +361,10 @@ class BallotBuilder:
         # Calculate table heights
         
         table = Table(data=[[""]], style=self.table_opt_style)
-        self.row_height = int(table.wrap(0,0)[1])
+        self.row_height = int(table.wrap(self.page_width,self.page_height)[1])
         
         table = Table(data=[["",""]], style=self.table_que_style)
-        self.que_height = int(table.wrap(0,0)[1])
+        self.que_height = int(table.wrap(self.page_width,self.page_height)[1])
         
         # Prepare common question data
         
@@ -386,15 +395,14 @@ class BallotBuilder:
             empty = self.page_width - (opt_width + vc_width + rec_width)
             
             if two_columns:
-                empty -= (self.page_width + self.table_opt_gap) / 2
+                empty -= (self.page_width + self.table_opt_gap) / 2.0
             
             # Share whitespace between options, votecodes and receipts
             
             if(empty > 0):
-                
-                opt_width += empty / 3
-                vc_width  += empty / 3
-                rec_width += empty / 3
+                opt_width += empty / 3.0
+                vc_width  += empty / 3.0
+                rec_width += empty / 3.0
             
             # Truncate long options to fit in the table
             
@@ -522,7 +530,8 @@ class BallotBuilder:
             # Calculate available height for options
             
             _avail_height = self.page_height - (self.cell_padding + \
-                table_hdr.wrap(0,0)[1] + table_ftr.wrap(0,0)[1])
+                    table_hdr.wrap(self.page_width, self.page_height)[1] + \
+                    table_ftr.wrap(self.page_width, self.page_height)[1])
             
             avail_height = _avail_height
             
@@ -548,7 +557,8 @@ class BallotBuilder:
                 if not self.long_votecodes:
                     vc_list = [str(vc).zfill(vc_chars) for vc in vc_list]
                 else:
-                    vc_list = [base32cf.hyphen(vc, self.long_vc_split) for vc in vc_list]
+                    vc_list = [base32cf.hyphen(vc, self.long_vc_split) \
+                        for vc in vc_list]
                 
                 data_list = list(zip(opt_list, vc_list, rec_list))
                 data_len = len(data_list)
@@ -620,7 +630,7 @@ class BallotBuilder:
                         frst = int(row // 2)
                         last = int(2*frst+opt_rows - (2*frst+opt_rows)//2)
                         
-                        t = int(math.ceil(data_len/2))
+                        t = int(math.ceil(data_len/2.0))
                         
                         optionv1 = data_list[frst: last]
                         
@@ -667,7 +677,7 @@ class BallotBuilder:
                     
                     element_list.append(table_wrapper)
                     
-                    avail_height -= table_wrapper.wrap(0,0)[1]
+                    avail_height -= table_wrapper.wrap(self.page_width, avail_height)[1]
                     row += opt_rows
             
             # Add page footer

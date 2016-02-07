@@ -9,9 +9,12 @@ import time
 import random
 import hashlib
 import tarfile
+import logging
 
 from base64 import b64encode
+from OpenSSL import crypto
 from functools import partial
+
 try:
     from itertools import zip_longest
 except ImportError:
@@ -19,30 +22,42 @@ except ImportError:
 
 from multiprocessing.pool import ThreadPool
 
-from google.protobuf import message
-
 from django.apps import apps
 from django.utils import translation
-from django.core.serializers.json import DjangoJSONEncoder
+from django.core.files import File
+from django.utils.encoding import force_bytes
 
 from billiard.pool import Pool
 
 from celery import shared_task, current_task
 from celery.signals import worker_process_init, task_failure
 
-from demos.apps.ea.tasks import crypto, pdf
+from demos.apps.ea.tasks import cryptotools, pdf
 from demos.apps.ea.tasks.masks import apply_mask
 from demos.apps.ea.models import Election, Task, RemoteUser
 
 from demos.common.utils import api, base32cf, config, dbsetup, enums, intc
 from demos.common.utils.permutation import permute
 from demos.common.utils.hashers import PBKDF2Hasher
+from demos.common.utils.json import CustomJSONEncoder
 
+log = logging.getLogger('demos.ea.setup')
 
-@shared_task(ignore_result=True)
-def election_setup(election, election_obj, language):
+@shared_task()
+def election_setup(election_obj, language):
     
     translation.activate(language)
+    
+    # Get election's model instance and update its state to WORKING
+    
+    election = Election.objects.get(id=election_obj['id'])
+    
+    election.state = enums.State.WORKING
+    election.save(update_fields=['state'])
+    
+    election_obj['state'] = enums.State.WORKING
+    
+    # Election-specific vote-token bit lengths
     
     tag_bits = 1
     serial_bits = (election.ballots + 100).bit_length()
@@ -50,6 +65,8 @@ def election_setup(election, election_obj, language):
     security_code_bits = config.SECURITY_CODE_LEN * 5
     token_bits = serial_bits + credential_bits + tag_bits + security_code_bits
     pad_bits = int(math.ceil(token_bits / 5.0) * 5 - token_bits)
+    
+    # Initialize common utilities
     
     hasher = PBKDF2Hasher()
     rand = random.SystemRandom()
@@ -61,17 +78,57 @@ def election_setup(election, election_obj, language):
     
     app_config = apps.get_app_config('ea')
     
-    # Update election state to WORKING
-    
-    election.state = enums.State.WORKING
-    election.save(update_fields=['state'])
-    
-    election_obj['state'] = enums.State.WORKING
-    
     # Establish sessions with the other servers
     
-    api_session = {app_name: api.Session('ea', app_name, app_config)
+    api_session = {app_name: api.Session(app_name, app_config)
         for app_name in ['abb', 'vbb', 'bds']}
+    
+    # Load CA's X.509 certificate and private key
+    
+    if config.CA_CERT_PEM and config.CA_PKEY_PEM:
+        with open(config.CA_CERT_PEM, 'r') as ca_file:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, ca_file.read())
+        
+        with open(config.CA_PKEY_PEM, 'r') as ca_file:
+            ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, ca_file.read(), \
+                force_bytes(config.CA_PKEY_PASSPHRASE))
+    else:
+        log.warning("No CA configured, generating unsigned ballot")
+        ca_cert = ca_pkey = None
+    
+    # Generate a new RSA key pair
+    
+    pkey = crypto.PKey()
+    pkey.generate_key(crypto.TYPE_RSA, config.PKEY_BIT_LEN)
+    
+    pkey_passphrase = os.urandom(int(3 * config.PKEY_PASSPHRASE_LEN // 4))
+    pkey_passphrase = b64encode(pkey_passphrase)
+    
+    pkey_dump = crypto.dump_privatekey(crypto.FILETYPE_PEM, pkey, \
+        config.PKEY_PASSPHRASE_CIPHER, pkey_passphrase)
+    pkey_file = File(io.BytesIO(pkey_dump), name='pkey.pem')
+    
+    election.pkey_file = pkey_file
+    election.pkey_passphrase = pkey_passphrase
+    election.save(update_fields=['pkey_file', 'pkey_passphrase'])
+    
+    # Generate a new X.509 certificate
+    
+    cert = crypto.X509()
+    cert.set_version(3)
+    cert.set_serial_number(base32cf.decode(election.id))
+    cert.set_notBefore(election.start_datetime.strftime('%Y%m%d%H%M%S%z'))
+    cert.set_notAfter(election.end_datetime.strftime('%Y%m%d%H%M%S%z'))
+    if ca_cert:
+        cert.set_issuer(ca_cert.get_subject())
+        cert.set_subject(ca_cert.get_subject())
+    cert.get_subject().CN = election.title[:64]
+    cert.set_pubkey(pkey)
+    if ca_pkey:
+        cert.sign(ca_pkey, 'sha256')
+    
+    election_obj['x509_cert'] = \
+        crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode()
     
     # Generate question keys and calculate max_options
     
@@ -84,7 +141,7 @@ def election_setup(election, election_obj, language):
         if options > max_options:
             max_options = options
             
-        question_obj['key'] = crypto.gen_key(election.ballots, options)
+        question_obj['key'] = cryptotools.gen_key(election.ballots, options)
     
     # Populate local and remote databases
     
@@ -187,22 +244,36 @@ def election_setup(election, election_obj, language):
                     
                     options = len(crypto_o_list)
                     
-                    votecode_list = list(range(options))
+                    votecode_list = list(range(1, options + 1))
                     rand.shuffle(votecode_list)
                     
-                    l_votecode_list = []
+                    # Prepare options
                     
-                    if election.long_votecodes:
+                    for votecode, (com, decom, zk1, zk_state) \
+                        in zip_longest(votecode_list, crypto_o_list):
                         
-                        # Long votecodes: each votecode is constructed as
-                        # follows: hmac(security_code, credential + (q_index *
-                        # max_options) + short_votecode), so that we get inique
-                        # votecodes across all questions. All votecode hashes
-                        # of a question in a ballot's part share the same salt.
+                        # Each part's option can be uniquely identified by:
                         
-                        for votecode in votecode_list:
+                        optionv_id = (q_index * max_options) + votecode
+                        
+                        # Prepare long votecodes (if enabled) and receipt data
+                        
+                        if not election.long_votecodes:
                             
-                            msg = credential_int+(q_index*max_options)+votecode
+                            l_votecode = ''
+                            l_votecode_hash = ''
+                            
+                            receipt_data = optionv_id
+                            
+                        else:
+                            
+                            # Each long votecode is constructed as follows:
+                            # hmac(security_code, credential + (question_index
+                            # * max_options) + short_votecode), so that we get
+                            # a unique votecode for each option in a ballot's
+                            # part. All votecode hashes share the same salt.
+                            
+                            msg = credential_int + optionv_id
                             bytes = int(math.ceil(msg.bit_length() / 8.0))
                             msg = intc.to_bytes(msg, bytes, 'big')
                             
@@ -215,25 +286,27 @@ def election_setup(election, election_obj, language):
                             l_votecode_hash, _, _ = hasher.encode(l_votecode, \
                                 l_votecode_salt, l_votecode_iterations, True)
                             
-                            l_votecode_list.append((l_votecode,l_votecode_hash))
-                    
-                    for votecode, l_votecode, crypto_list in zip_longest(\
-                        votecode_list, l_votecode_list, crypto_o_list):
+                            receipt_data = base32cf.decode(l_votecode)
                         
-                        com, decom, zk1, zk_state = crypto_list
-                        l_votecode, l_votecode_hash = l_votecode or (None, None)
+                        # Generate receipt (receipt_data is an integer)
                         
-                        # Generate receipt
+                        bytes = int(math.ceil(receipt_data.bit_length() / 8.0))
+                        receipt_data = intc.to_bytes(receipt_data, bytes, 'big')
                         
-                        receipt = base32cf.random(config.RECEIPT_LEN)
+                        receipt_data = crypto.sign(pkey, receipt_data, 'sha256')
+                        receipt_data = intc.from_bytes(receipt_data, 'big')
                         
-                        # 
+                        receipt_full = base32cf.encode(receipt_data)
+                        receipt = receipt_full[-config.RECEIPT_LEN:]
+                        
+                        # Pack optionv's data
                         
                         optionv_obj = {
                             'votecode': votecode,
                             'l_votecode': l_votecode,
                             'l_votecode_hash': l_votecode_hash,
                             'receipt': receipt,
+                            'receipt_full': receipt_full,
                             'com': com,
                             'decom': decom,
                             'zk1': zk1,
@@ -394,12 +467,8 @@ def election_setup(election, election_obj, language):
     
     thread_pool.map(api_update1, ['abb', 'vbb', 'bds'])
     
-    # Delete celery task
-    
-    task = Task.objects.get(election_id=election.id)
-    task.delete()
-    
     translation.deactivate()
+    return progress
 
 
 @task_failure.connect
@@ -453,7 +522,7 @@ def crypto_gen(ballots, q_list, number):
     # ballots of parts of crypto elements to a list of ballots of parts of
     # questions of crypto elements!
     
-    crypto_list = [crypto.gen_ballot(key, ballots, options, number) \
+    crypto_list = [cryptotools.gen_ballot(key, ballots, options, number) \
         for key, options in q_list]
     
     return zip(*[iter([j for i in zip(*crypto_list) for j in zip(*i)])] * 2)
@@ -467,17 +536,4 @@ def ballot_gen(ballot_obj, builder):
     pdfbuf = builder.pdfgen(ballot_obj)
     
     return (serial, pdfbuf)
-
-
-class CustomJSONEncoder(DjangoJSONEncoder):
-    """JSONEncoder subclass that supports date/time and protobuf types."""
-    
-    def default(self, o):
-        
-        if isinstance(o, message.Message):
-            r = o.SerializeToString()
-            r = b64encode(r).decode('ascii')
-            return r
-        
-        return super(CustomJSONEncoder, self).default(o)
 
