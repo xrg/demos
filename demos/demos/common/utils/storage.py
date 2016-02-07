@@ -85,7 +85,10 @@ class TarFileStorage(Storage):
         tarinfo = tar.getmember(filename)
         filebuf = io.BytesIO(tar.extractfile(tarinfo).read())
 
-        return File(filebuf)
+        file_ = File(filebuf, name=tarinfo.name)
+        file_.mtime = tarinfo.mtime
+
+        return file_
 
     def _save(self, name, content):
 
