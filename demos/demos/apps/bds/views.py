@@ -47,17 +47,19 @@ class ManageView(View):
         return f
 
 
-class SetupView(View):
+# API Views --------------------------------------------------------------------
+
+class ApiSetupView(api.ApiSetupView):
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiSetupView, self).__init__(*args, **kwargs)
     
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(SetupView, self).dispatch(*args, **kwargs)
+        return super(ApiSetupView, self).dispatch(*args, **kwargs)
     
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
+    def post(self, request, phase):
         
         try:
             task = request.POST['task']
@@ -94,38 +96,16 @@ class SetupView(View):
             logger.exception('SetupView: API error')
             return http.HttpResponse(status=422)
         
-        return http.HttpResponse()
+        return super(ApiSetupView, self).post(request, election_obj)
 
 
-class UpdateView(View):
+class ApiUpdateView(api.ApiUpdateView):
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiUpdateView, self).__init__(*args, **kwargs)
     
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(UpdateView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
-        try:
-            data = json.loads(request.POST['data'])
-            model = app_config.get_model(data['model'])
-            
-            fields = data['fields']
-            natural_key = data['natural_key']
-            
-            obj = model.objects.get_by_natural_key(**natural_key)
-            
-            for name, value in fields.items():
-                setattr(obj, name, value)
-                
-            obj.save(update_fields=list(fields.keys()))
-            
-        except Exception:
-            logger.exception('UpdateView: API error')
-            return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+        return super(ApiUpdateView, self).dispatch(*args, **kwargs)
 

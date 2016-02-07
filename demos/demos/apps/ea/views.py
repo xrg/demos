@@ -365,11 +365,32 @@ class StatusView(View):
         return http.JsonResponse(response)
 
 
-class CryptoToolsView(View):
+class CenterView(View):
+    
+    template_name = 'ea/center.html'
+    
+    def get(self, request):
+
+        
+        abb_url = urljoin(config.URL['abb'], 'results/')
+        bds_url = urljoin(config.URL['bds'], 'manage/')
+        
+        context = {
+            'abb_url': abb_url,
+            'bds_url': bds_url,
+            'elections': Election.objects.filter(user=request.user),
+        }
+
+        return render(request, self.template_name, context)
+
+
+# API Views --------------------------------------------------------------------
+
+class ApiCryptoView(View):
     
     @method_decorator(api.user_required('abb'))
     def dispatch(self, *args, **kwargs):
-        return super(CryptoToolsView, self).dispatch(*args, **kwargs)
+        return super(ApiCryptoView, self).dispatch(*args, **kwargs)
     
     def get(self, request, *args, **kwargs):
         csrf.get_token(request)
@@ -401,7 +422,7 @@ class CryptoToolsView(View):
         
         try:
             command = kwargs.pop('command')
-            request_obj = json.loads(request.POST['data'])
+            request_obj = api.ApiSession.load_json_request(request.POST)
             
             # Get common request data
             
@@ -549,14 +570,14 @@ class CryptoToolsView(View):
             logger.exception('CryptoToolsView: API error')
             return http.HttpResponse(status=422)
         
-        return http.JsonResponse(response,safe=False, encoder=CustomJSONEncoder)
+        return http.JsonResponse(response,safe=False,encoder=CustomJSONEncoder)
 
 
-class UpdateStateView(View):
+class ApiUpdateStateView(View):
     
     @method_decorator(api.user_required(['abb', 'vbb', 'bds']))
     def dispatch(self, *args, **kwargs):
-        return super(UpdateStateView, self).dispatch(*args, **kwargs)
+        return super(ApiUpdateStateView, self).dispatch(*args, **kwargs)
     
     def get(self, request):
         csrf.get_token(request)
@@ -565,7 +586,7 @@ class UpdateStateView(View):
     def post(self, request, *args, **kwargs):
         
         try:
-            data = json.loads(request.POST['data'])
+            data = api.ApiSession.load_json_request(request.POST)
             
             e_id = data['e_id']
             election = Election.objects.get(id=e_id)
@@ -601,35 +622,16 @@ class UpdateStateView(View):
                 },
             }
             
-            api_session = {app_name: api.Session(app_name, app_config)
+            api_session = {app_name: api.ApiSession(app_name, app_config)
                 for app_name in ['abb','vbb','bds'] if not app_name == username}
             
             for app_name in api_session.keys():
-                api_update(app_name, data=data, api_session=api_session, \
-                    url_path='manage/update/');
+                _remote_app_update(app_name, data=data, \
+                    api_session=api_session, url_path='api/update/');
             
         except Exception:
             logger.exception('UpdateStateView: API error')
             return http.HttpResponse(status=422)
         
         return http.HttpResponse()
-
-
-class CenterView(View):
-    
-    template_name = 'ea/center.html'
-    
-    def get(self, request):
-
-        
-        abb_url = urljoin(config.URL['abb'], 'results/')
-        bds_url = urljoin(config.URL['bds'], 'manage/')
-        
-        context = {
-            'abb_url': abb_url,
-            'bds_url': bds_url,
-            'elections': Election.objects.all(),
-        }
-
-        return render(request, self.template_name, context)
 

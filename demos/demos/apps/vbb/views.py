@@ -410,20 +410,18 @@ class VoteView(View):
                 
                 # Send vote data to the abb server
                 
-                abb_session = api.Session('abb', app_config)
+                abb_session = api.ApiSession('abb', app_config)
                 
                 data = {
-                    'votedata': json.dumps({
-                        'e_id': election.id,
-                        'b_serial': ballot.serial,
-                        'b_credential': credential,
-                        'p1_index': part1.index,
-                        'p1_votecodes': vote_obj,
-                        'p2_security_code': security_code,
-                    })
+                    'e_id': election.id,
+                    'b_serial': ballot.serial,
+                    'b_credential': credential,
+                    'p1_index': part1.index,
+                    'p1_votecodes': vote_obj,
+                    'p2_security_code': security_code,
                 }
                 
-                abb_session.post('command/vote/', data)
+                abb_session.post('api/vote/', data, json=True)
                 
                 ballot.used = True
                 ballot.save(update_fields=['used'])
@@ -452,64 +450,26 @@ class QRCodeScannerView(View):
         return render(request, self.template_name, {})
 
 
-class SetupView(View):
+# API Views --------------------------------------------------------------------
+
+class ApiSetupView(api.ApiSetupView):
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiSetupView, self).__init__(*args, **kwargs)
     
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(SetupView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
-        try:
-            task = request.POST['task']
-            election_obj = json.loads(request.POST['payload'])
-            
-            if task == 'election':
-                dbsetup.election(election_obj, app_config)
-            elif task == 'ballot':
-                dbsetup.ballot(election_obj, app_config)
-            else:
-                raise Exception('SetupView: Invalid POST task: %s' % task)
-        except Exception:
-            logger.exception('SetupView: API error')
-            return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+        return super(ApiSetupView, self).dispatch(*args, **kwargs)
 
 
-class UpdateView(View):
+class ApiUpdateView(api.ApiUpdateView):
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiUpdateView, self).__init__(*args, **kwargs)
     
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(UpdateView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
-        try:
-            data = json.loads(request.POST['data'])
-            model = app_config.get_model(data['model'])
-            
-            fields = data['fields']
-            natural_key = data['natural_key']
-            
-            obj = model.objects.get_by_natural_key(**natural_key)
-            
-            for name, value in fields.items():
-                setattr(obj, name, value)
-            
-            obj.save(update_fields=list(fields.keys()))
-            
-        except Exception:
-            logger.exception('UpdateView: API error')
-            return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+        return super(ApiUpdateView, self).dispatch(*args, **kwargs)
 

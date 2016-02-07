@@ -125,91 +125,80 @@ class ResultsView(View):
         return render(request, self.template_name, context)
 
 
-class SetupView(View):
-    
+# API Views --------------------------------------------------------------------
+
+class ApiSetupView(api.ApiSetupView):
+
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiSetupView, self).__init__(*args, **kwargs)
+
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(SetupView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
+        return super(ApiSetupView, self).dispatch(*args, **kwargs)
+
+    def post(self, request, phase):
 
         try:
-            task = request.POST['task']
-            election_obj = json.loads(request.POST['payload'])
-            
-            if task == 'election':
-                
-                cert_dump = election_obj['cert'].encode()
-                cert_file = File(BytesIO(cert_dump), name='cert.pem')
-                election_obj['cert'] = cert_file
-                
-                dbsetup.election(election_obj, app_config)
-                election = Election.objects.get(id=election_obj['id'])
-                
-                scheduled_time = election.end_datetime + timedelta(seconds=5)
-                
-                task = tally_protocol.s(election.id)
-                task.freeze()
-                
-                Task.objects.create(election=election, task_id=task.id)
-                task.apply_async(eta=scheduled_time)
-                
-            elif task == 'ballot':
-                dbsetup.ballot(election_obj, app_config)
-            else:
-                raise Exception('SetupView: Invalid POST task: %s' % task)
+            election_obj = api.ApiSession.load_json_request(request.POST)
+
+            if phase == 'p1':
+                election_obj['cert'] = request.FILES['cert.pem']
+
         except Exception:
             logger.exception('SetupView: API error')
             return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+
+        return super(ApiSetupView, self).post(request, election_obj)
 
 
-class UpdateView(View):
-    
+class ApiUpdateView(api.ApiUpdateView):
+
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiUpdateView, self).__init__(*args, **kwargs)
+
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(UpdateView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
+        return super(ApiUpdateView, self).dispatch(*args, **kwargs)
+
+    def post(self, request):
 
         try:
-            data = json.loads(request.POST['data'])
-            model = app_config.get_model(data['model'])
-            
+            data = api.ApiSession.load_json_request(request.POST)
+
+            model = data['model']
             fields = data['fields']
             natural_key = data['natural_key']
-            
-            obj = model.objects.get_by_natural_key(**natural_key)
-            
-            for name, value in fields.items():
-                setattr(obj, name, value)
-            
-            obj.save(update_fields=list(fields.keys()))
-        
+
+            if model == 'Election' and 'state' in fields:
+
+                election = Election.objects.get_by_natural_key(**natural_key)
+
+                if election.state == enums.State.WORKING \
+                    and fields['state'] == enums.State.RUNNING:
+
+                    eta = election.end_datetime + timedelta(seconds=5)
+
+                    task = tally_protocol.s(election.id)
+                    task.freeze()
+
+                    Task.objects.create(election=election, task_id=task.id)
+                    task.apply_async(eta=eta)
+
         except Exception:
             logger.exception('UpdateView: API error')
             return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+
+        return super(ApiUpdateView, self).post(request, data)
 
 
-class VoteView(View):
-    
+class ApiVoteView(View):
+
     @method_decorator(api.user_required('vbb'))
     def dispatch(self, *args, **kwargs):
-        return super(VoteView, self).dispatch( *args, **kwargs)
-    
+        return super(ApiVoteView, self).dispatch( *args, **kwargs)
+
     def get(self, request):
         csrf.get_token(request)
         return http.HttpResponse()
@@ -217,7 +206,7 @@ class VoteView(View):
     def post(self, request, *args, **kwargs):
         
         try:
-            votedata = json.loads(request.POST['votedata'])
+            votedata = api.ApiSession.load_json_request(request.POST)
             
             e_id = votedata['e_id']
             b_serial = votedata['b_serial']
@@ -376,8 +365,7 @@ class VoteView(View):
         return http.HttpResponse()
 
 
-class ExportView(View):
-    
+class ApiExportView(View):
     template_name = 'abb/export.html'
     
     def __post_election(o, v, d):
@@ -477,15 +465,15 @@ class ExportView(View):
     __update_namespaces(_namespaces)
 
     # --------------------------------------------------------------------------
-    @staticmethod
-    def _urlpatterns():
 
 
+    @classmethod
+    def as_patterns(cls):
 
         def _build_urlpatterns(ns):
             
-            node = ExportView._namespaces[ns]
             
+            node = cls._namespaces[ns]
             urlpatterns = []
             for next in node['next']:
                 urlpatterns += _build_urlpatterns(next)
@@ -494,22 +482,23 @@ class ExportView(View):
                 field + '>' + regex + ')' for field, regex in node['args']])
 
             urlpatterns = [url(r'^' + node['name'] + 's/', include([
-                url(r'^$', ExportView.as_view(), name='schema'),
+                url(r'^$', cls.as_view(), name='schema'),
                 url(r'^' + argpath + '/', include([
-                    url(r'^$', ExportView.as_view(), name='data'),
+                    url(r'^$', cls.as_view(), name='data'),
                 ] + urlpatterns)),
             ], namespace=ns))]
 
             return urlpatterns
 
         urlpatterns = []
-        for ns in ExportView._namespace_root:
+        for ns in cls._namespace_root:
             urlpatterns += _build_urlpatterns(ns)
 
         return urlpatterns
-    @staticmethod
-    def _export(namespaces, url_args, query_args, url_name):
 
+
+    @classmethod
+    def _export(cls, namespaces, url_args, query_args, url_name):
 
         # Get each namespace's model instance, until the requested one is found
 
@@ -517,7 +506,7 @@ class ExportView(View):
 
         for i, ns in enumerate(namespaces, start=1):
 
-            node = ExportView._namespaces[ns]
+            node = cls._namespaces[ns]
 
             kwflds = {f.name: objects[k] for k in objects for f
                 in node['model']._meta.get_fields() if f.is_relation
@@ -535,7 +524,7 @@ class ExportView(View):
 
             def _build_data(ns, objects, kwflds):
 
-                node = ExportView._namespaces[ns]
+                node = cls._namespaces[ns]
 
                 # 'obj_fields' is the intersection of the namespace's fields
                 # and the fields specified in the namespace's url query. If an
@@ -598,8 +587,8 @@ class ExportView(View):
                 fields = set(query_args.get(node['name'], node['namespaces']))
 
                 for next in node['next']:
-                    name = ExportView._namespaces[next]['name'] + 's'
                     
+                    name = cls._namespaces[next]['name'] + 's'
                     if name not in fields:
                         continue
 
@@ -636,12 +625,12 @@ class ExportView(View):
             }
 
         return data
-    @staticmethod
-    def _export_file(namespace, url_args, fieldname, filename=None):
-        
-        model = ExportView._namespaces[namespace]['model']
 
 
+    @classmethod
+    def _export_file(cls, namespace, url_args, fieldname, filename=None):
+
+        model = cls._namespaces[namespace]['model']
         kwflds = url_args.get(model.__name__, {})
         obj = get_object_or_404(model, **kwflds)
 
@@ -811,7 +800,7 @@ class ExportView(View):
 
             if isinstance(o, message.Message):
                 return self.protobuf.to_dict(o, ordered=True)
-            return super(ExportView._CustomJSONEncoder, self).default(o)
 
+            return super(ApiExportView._CustomJSONEncoder, self).default(o)
 
 #eof
