@@ -2,7 +2,6 @@
 
 from __future__ import division
 
-import json
 import random
 import logging
 
@@ -23,6 +22,7 @@ from django.shortcuts import render, redirect
 from django.middleware import csrf
 from django.views.generic import View
 from django.core.exceptions import ValidationError
+from django.core.serializers import serialize
 from django.utils.decorators import method_decorator
 from django.core.urlresolvers import reverse
 
@@ -30,13 +30,13 @@ from celery.result import AsyncResult
 
 from demos.apps.ea.forms import ElectionForm, OptionFormSet, \
     PartialQuestionFormSet, BaseQuestionFormSet
-from demos.apps.ea.tasks import api_update, cryptotools, election_setup, pdf
+from demos.apps.ea.tasks import cryptotools, election_setup, pdf
 from demos.apps.ea.models import Config, Election, Question, OptionV, Task
+from demos.apps.ea.tasks.setup import _remote_app_update
 
 from demos.common.utils import api, base32cf, crypto, enums
 from demos.common.utils.json import CustomJSONEncoder
 from demos.common.utils.config import registry
-from demos.common.utils.dbsetup import _prep_kwargs
 from django.utils.translation import ugettext as _
 
 logger = logging.getLogger(__name__)
@@ -232,12 +232,20 @@ class CreateView(View):
                     config_.save(update_fields=['value'])
                 
                 election_obj['id'] = election_id
+                election_obj['user'] = request.user
                 election_obj['state'] = enums.State.PENDING
                 
                 # Create the new election object
                 
-                election_kwargs = _prep_kwargs(election_obj, Election)
-                election = Election.objects.create(**election_kwargs)
+                e_kwargs = {
+                    field.name: election_obj[field.name] for field \
+                    in Election._meta.get_fields() if field.name in election_obj
+                }
+                
+                election = Election.objects.create(**e_kwargs)
+                
+                election_obj['user'] = serialize('json', [ election_obj['user'] ], \
+                    use_natural_foreign_keys=True, use_natural_primary_keys=True)
                 
                 # Prepare and start the election_setup task
                 
@@ -291,7 +299,10 @@ class StatusView(View):
             election = None
         
         if not election:
-           return redirect(reverse('ea:home') + '?error=id')
+            return redirect(reverse('ea:home') + '?error=id')
+        
+        if election.user != request.user:
+            return redirect(reverse('ea:home') + '?error=perm')
         
         abb_url = urljoin(config.URL['abb'], quote("results/%s/" % election_id))
         bds_url = urljoin(config.URL['bds'], quote("manage/%s/" % election_id))
@@ -318,6 +329,9 @@ class StatusView(View):
         try: # Return election creation progress
             
             election = Election.objects.get(id=election_id)
+            
+            if election.user != request.user:
+                return http.HttpResponseForbidden()
             
             celery = Task.objects.get(election=election)
             task = AsyncResult(str(celery.task_id))

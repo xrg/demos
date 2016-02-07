@@ -2,6 +2,7 @@
 
 from django.db import models
 from django.core import urlresolvers
+from django.contrib.auth.models import User
 
 from demos.common.utils import crypto, enums, fields
 from demos.common.utils.config import registry
@@ -24,6 +25,8 @@ class Election(models.Model):
     vc_type = fields.IntEnumField(cls=enums.VcType)
 
     ballots = models.PositiveIntegerField()
+    
+    user = models.ForeignKey(User)
     
     # Other model methods and meta options
     

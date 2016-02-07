@@ -4,6 +4,7 @@ import os
 
 from django.db import models
 from django.core import urlresolvers
+from django.contrib.auth.models import User
 
 from demos.common.utils import enums, fields, storage
 from demos.common.utils.config import registry
@@ -26,6 +27,8 @@ class Election(models.Model):
     vc_type = fields.IntEnumField(cls=enums.VcType)
 
     ballots = models.PositiveIntegerField()
+    
+    user = models.ForeignKey(User, related_name='+')
     
     
     # Other model methods and meta options
@@ -65,6 +68,8 @@ class Ballot(models.Model):
     
     serial = models.PositiveIntegerField()
     pdf = models.FileField(upload_to=get_ballot_file_path, storage=ballot_fs)
+    
+    user = models.ForeignKey(User, blank=True, null=True, default=None)
     
     # Other model methods and meta options
     

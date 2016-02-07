@@ -63,6 +63,8 @@ class ManageView(View):
         if not election:
             return redirect(reverse('ea:home') + '?error=id')
 
+        if election.user != request.user:
+            return redirect(reverse('bds:home') + '?error=perm')
 
         available_ballots = Ballot.objects.\
             filter(election=election, user__isnull=True).count()
@@ -87,6 +89,8 @@ class ManageView(View):
         try:
             election = Election.objects.get(id=election_id)
 
+            if election.user != request.user:
+                return http.HttpResponseForbidden()
 
         except (ValidationError, Election.DoesNotExist):
             return http.HttpResponse(status=422)
