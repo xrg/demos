@@ -27,8 +27,6 @@ class Election(models.Model):
 
     ballots = models.PositiveIntegerField()
     
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
     
     # Other model methods and meta options
     

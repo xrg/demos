@@ -23,9 +23,6 @@ class Election(models.Model):
     type = fields.IntEnumField(cls=enums.Type)
     vc_type = fields.IntEnumField(cls=enums.VcType)
 
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
-    
     ballots = models.PositiveIntegerField()
     
     # Other model methods and meta options

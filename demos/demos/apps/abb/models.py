@@ -35,9 +35,6 @@ class Election(models.Model):
     type = fields.IntEnumField(cls=enums.Type)
     vc_type = fields.IntEnumField(cls=enums.VcType)
 
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
-    
     ballots = models.PositiveIntegerField()
     
     cert = models.FileField(upload_to=get_cert_file_path, storage=fs_root)

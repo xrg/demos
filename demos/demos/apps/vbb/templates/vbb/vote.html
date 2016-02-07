@@ -19,11 +19,7 @@
     <div class="col-xs-12">
         {% tuple _("Election") election.id as t1 %}
         {% tuple _("Ballot") b_serial|add:" - "|add:p_index as t2 %}
-        {% if not election.parties_and_candidates %}
-            {% tuple _("Questions") questions|length as t3 %}
-        {% else %}
-            {% tuple _("Candidates") questions|length as t3 %}
-        {% endif %}
+        {% tuple _("Questions") questions|length as t3 %}
         {% tuple t1 t2 t3 as panels %}
         {% include "common/election_box.html" with object=election now_datetime=timezone_now panels=panels %}
         
@@ -84,7 +80,7 @@
                     <div class="page-header">
                         <h3>
                             <span>
-                                <small>{% if election.parties_and_candidates %}{% trans "Party" %}{% else %}{% trans "Question" %}{% endif %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}:</small>
+                                <small>{% trans "Question" %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}:</small>
                                 <br><span class="title">{{ question.text }}</span><br>
                                 <small>{% blocktrans count choices=question.choices %}Select one option{% plural %}Select up to {{ choices }} options{% endblocktrans %}</small>
                             </span>
@@ -121,11 +117,11 @@
             <!-- Controls -->
             <a class="left carousel-control" href="#carousel" role="button" data-slide="prev">
                 <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
-                <span class="hidden">{% if election.parties_and_candidates %}{% trans "Previous Question" %}{% else %}{% trans "Previous Party" %}{% endif %}</span>
+                <span class="hidden">{% trans "Previous Question" %}</span>
             </a>
             <a class="right carousel-control" href="#carousel" role="button" data-slide="next">
                 <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
-                <span class="hidden">{% if election.parties_and_candidates %}{% trans "Next Question" %}{% else %}{% trans "Next Party" %}{% endif %}</span>
+                <span class="hidden">{% trans "Next Question" %}</span>
             </a>
             {% endif %}
         </div>
@@ -190,7 +186,7 @@
                         <div class="row">
                             <div class="col-xs-12">
                                 <div class="panel panel-default hidden">
-                                    <div class="panel-heading">{% if not election.parties_and_candidates %}{% trans "Question" %}{% else %}{% trans "Candidate" %}{% endif %}</div>
+                                    <div class="panel-heading">{% trans "Question" %}</div>
                                     <table class="table table-condensed table-hover">
                                         <thead><tr><th>{% trans "Option" %}</th><th>{% trans "Votecode" %}</th></tr></thead>
                                         <tbody></tbody>
@@ -226,7 +222,7 @@
                         <div class="row">
                             <div class="col-xs-12">
                                 <div class="panel panel-default hidden">
-                                    <div class="panel-heading">{% if not election.parties_and_candidates %}{% trans "Question" %}{% else %}{% trans "Candidate" %}{% endif %}</div>
+                                    <div class="panel-heading">{% trans "Question" %}</div>
                                     <table class="table table-condensed table-hover">
                                         <thead><tr><th>{% trans "Option" %}</th><th>{% trans "Votecode" %}</th><th>{% trans "Receipt" %}</th></tr></thead>
                                         <tbody></tbody>
@@ -273,7 +269,6 @@
     var credential = sjcl.codec.base64.toBits("{{ credential|default:'' }}");
     var vc_type = {{ election.vc_type }};
     
-    var parties_and_candidates = {{ election.parties_and_candidates|yesno:'true,false,null' }};
     var VcType = { {% for name, value in VcType.get_valueitems().items() %} {{ name }}: {{ value }}, {% endfor %} };
     var State = { {% for name, value in State.items %} {{ name }}: {{ value }}, {% endfor %} };
 </script>

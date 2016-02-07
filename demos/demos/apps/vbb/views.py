@@ -350,9 +350,7 @@ class VoteView(View):
             
             try:
                 if not (isinstance(vote_obj, dict)
-                    and ((not election.parties_and_candidates
-                    and len(vote_obj)== len(q_options))
-                    or (election.parties_and_candidates and len(vote_obj) == 1))
+                    and len(vote_obj) == len(q_options)
                     and all(isinstance(q_index, string_types)
                     and isinstance(vc_list, list)
                     and 1 <= len(vc_list) <= q_options.get(int(q_index), -1)
@@ -375,10 +373,6 @@ class VoteView(View):
             
             try:
                 for question in question_qs.iterator():
-                    
-                    if election.parties_and_candidates and \
-                        str(question.index) not in vote_obj:
-                        continue
                     
                     optionv_qs = OptionV.objects.\
                         filter(part=part1, question=question)

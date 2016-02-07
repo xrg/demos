@@ -119,8 +119,6 @@ class CreateView(View):
             
             election_obj['__list_Question__'] = []
             
-            pac = election_obj['parties_and_candidates']
-            
             for q_index, (question_form, option_formset) \
                 in enumerate(zip(question_formset, option_formsets)):
                 
