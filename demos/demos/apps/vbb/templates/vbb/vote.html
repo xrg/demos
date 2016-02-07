@@ -17,7 +17,7 @@
 
 <div class="row">
     <div class="col-xs-12">
-        {% tuple _("Election") election.id as t1 %}
+        {% tuple _("Election ID") election.id as t1 %}
         {% tuple _("Ballot") b_serial|add:" - "|add:p_index as t2 %}
         {% tuple _("Questions") questions|length as t3 %}
         {% tuple t1 t2 t3 as panels %}

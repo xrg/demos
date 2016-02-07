@@ -17,7 +17,7 @@
 <div class="row">
     <div class="col-xs-12">
         
-        {% tuple _("Election") election.id as t1 %}
+        {% tuple _("Election ID") election.id as t1 %}
         {% tuple _("Participants") participants as t2 %}
         {% tuple t1 t2 as panels %}
         {% include "common/election_box.html" with object=election panels=panels %}

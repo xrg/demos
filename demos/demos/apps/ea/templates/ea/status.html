@@ -18,7 +18,7 @@
 <div class="row">
     <div class="col-xs-12">
         
-        {% tuple _("Election") election.id as t1 %}
+        {% tuple _("Election ID") election.id as t1 %}
         {% tuple _("Ballots") election.ballots as t3 %}
         
         {% if election.type == Type.ELECTIONS %}
