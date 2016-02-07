@@ -113,7 +113,7 @@ def _request_to_response(request, response_field):
     try:
         sock.connect(config.CRYPTO_ADDR)
     except Exception, e:
-        log.exception("Failed to connect to %s: %s", config.CRYPTO_ADDR, e)
+        log.exception("Failed to connect to %s %s: %s", config.CRYPTO_AF, config.CRYPTO_ADDR, e)
         raise
 
     sock.sendall(size + data)
