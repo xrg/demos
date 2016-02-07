@@ -52,7 +52,7 @@ class Election(models.Model):
         return "%s - %s" % (self.id, self.title)
     
     def get_absolute_url(self):
-        return urlresolvers.reverse('abb:', args=[self.id])
+        return urlresolvers.reverse('abb:results', args=[self.id])
     
     class Meta:
         ordering = ['id']
