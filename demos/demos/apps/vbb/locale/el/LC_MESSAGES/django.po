@@ -322,3 +322,9 @@ msgstr "Επαλήθευση και Αποτελέσματα"
 #: demos/apps/vbb/templates/vbb/home.html:14
 msgid "Welcome to the DEMOS e-voting system"
 msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"
+
+#: demos/apps/vbb/templates/vbb/vote.html:20
+#, fuzzy
+#| msgid "Election"
+msgid "Election ID"
+msgstr "Ψηφοφορία"

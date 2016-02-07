@@ -485,3 +485,28 @@ msgstr "Κάντε κλικ στην ενέργεια για να προσθέσ
 #: demos/apps/ea/templates/ea/status.html:27
 msgid "Type"
 msgstr "Τύπος"
+
+#: demos/apps/ea/tasks/pdf.py:329 demos/apps/ea/templates/ea/center.html:37
+#: demos/apps/ea/templates/ea/status.html:21
+msgid "Election ID"
+msgstr "Αναγνωριστικό Ψηφοφορίας"
+
+#: demos/apps/ea/templates/ea/center.html:24
+msgid "User name"
+msgstr "Όνομα χρήστη"
+
+#: demos/apps/ea/templates/ea/center.html:25
+msgid "Full name"
+msgstr "Ονοματεπώνυμο"
+
+#: demos/apps/ea/templates/ea/center.html:26
+msgid "E-mail"
+msgstr ""
+
+#: demos/apps/ea/templates/ea/center.html:41
+msgid "Election status"
+msgstr "Κατάσταση ψηφοφορίας"
+
+#: demos/apps/ea/templates/ea/center.html:54
+msgid "No elections available"
+msgstr "Δεν υπάρχουν διαθέσιμες ψηφοφορίες"
