@@ -45,7 +45,6 @@ def crypto_ca_keys_check(app_configs, **kwargs):
     """Tests CA certificate and key configuration
     """
 
-    import socket
     from OpenSSL import crypto
     from demos.common.utils.config import registry
     from django.utils.encoding import force_bytes
@@ -59,10 +58,13 @@ def crypto_ca_keys_check(app_configs, **kwargs):
     try:
         with open(config.CA_CERT_PEM, 'r') as ca_file:
             ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, ca_file.read())
+            assert ca_cert
         
         with open(config.CA_PKEY_PEM, 'r') as ca_file:
             ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, ca_file.read(), \
                 force_bytes(config.CA_PKEY_PASSPHRASE))
+            assert ca_pkey
+
         return []
     except Exception as e:
         return [_checks.Error("CA certificate and key \"%s\" \"%s\" fail: %s" % \
