@@ -594,6 +594,7 @@ class ApiUpdateStateView(View):
         return super(ApiUpdateStateView, self).dispatch(*args, **kwargs)
     
     def get(self, request):
+        
         csrf.get_token(request)
         return http.HttpResponse()
     

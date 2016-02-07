@@ -17,7 +17,6 @@ except ImportError:
     from urlparse import urljoin
 
 from django import http
-from django.db import transaction
 from django.apps import apps
 from django.utils import timezone
 from django.db.models import Max
@@ -26,12 +25,11 @@ from django.middleware import csrf
 from django.views.generic import View
 from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
-from django.core.urlresolvers import reverse
 
 from demos.apps.vbb.models import Election, Question, Ballot, Part, \
-    OptionV, OptionC
+    OptionV
 
-from demos.common.utils import api, base32cf, dbsetup, enums, hashers, intc
+from demos.common.utils import api, base32cf, enums, hashers, intc
 from demos.common.utils.config import registry
 
 logger = logging.getLogger(__name__)

@@ -200,175 +200,176 @@ class ApiVoteView(View):
         return super(ApiVoteView, self).dispatch( *args, **kwargs)
 
     def get(self, request):
+
         csrf.get_token(request)
         return http.HttpResponse()
-    
+
     def post(self, request, *args, **kwargs):
-        
+
         try:
             votedata = api.ApiSession.load_json_request(request.POST)
-            
+
             e_id = votedata['e_id']
             b_serial = votedata['b_serial']
             b_credential = b64decode(votedata['b_credential'].encode())
             p1_index = votedata['p1_index']
             p1_votecodes = votedata['p1_votecodes']
             p2_security_code = votedata['p2_security_code']
-            
+
             election = Election.objects.get(id=e_id)
             ballot = Ballot.objects.get(election=election, serial=b_serial)
-            
+
             # part1 is always the part that the client has used to vote,
             # part2 is the other part.
-            
+
             order = ('' if p1_index == 'A' else '-') + 'index'
             part1, part2 = Part.objects.filter(ballot=ballot).order_by(order)
-            
+
             question_qs = Question.objects.filter(election=election)
-            
+
             # Verify election state
-            
+
             now = timezone.now()
-            
+
             if not(election.state == enums.State.RUNNING and now >= \
                 election.start_datetime and now < election.end_datetime):
                 raise Exception('Invalid election state')
-            
+
             # Verify ballot's credential
-            
+
             if not hasher.verify(b_credential, ballot.credential_hash):
                 raise Exception('Invalid ballot credential')
-            
+
             # Verify part2's security code
-            
+
             _, salt, iterations = part2.security_code_hash2.split('$')
             hash,_,_=hasher.encode(p2_security_code,salt[::-1],iterations,True)
-            
+
             if not hasher.verify(hash, part2.security_code_hash2):
                 raise Exception('Invalid part security code')
-            
+
             # Check if the ballot is already used
-            
+
             part_qs = [part1, part2]
             if OptionV.objects.filter(part__in=part_qs, voted=True).exists():
                 raise Exception('Ballot already used')
-            
+
             # Common long votecode values
-            
+
             if election.vc_type == enums.VcType.LONG:
-                
+
                 max_options = question_qs.\
                     aggregate(Max('options'))['options__max']
-                
+
                 credential_int = intc.from_bytes(b_credential, 'big')
-                
+
                 key = base32cf.decode(p2_security_code)
                 bytes = int(math.ceil(key.bit_length() / 8))
                 key = intc.to_bytes(key, bytes, 'big')
-            
+
             # Verify vote's correctness and save it to the db in an atomic
             # transaction. If anything fails, rollback and return the error.
-            
+
             with transaction.atomic():
                 for question in question_qs.iterator():
-                    
+
                     optionv_qs = OptionV.objects.\
                         filter(part=part1, question=question)
-                    
+
                     optionv2_qs = OptionV.objects.\
                         filter(part=part2, question=question)
-                    
+
                     vc_name = 'votecode'
-                    
                     vc_list = p1_votecodes[str(question.index)]
 
                     if len(vc_list) < 1:
                         raise Exception('Not enough votecodes')
-                    
+
                     if len(vc_list) > question.choices:
                         raise Exception('Too many votecodes')
-                    
+
                     # Long votecode version: use hashes instead of votecodes
-                    
+
                     if election.vc_type == enums.VcType.LONG:
-                        
+
                         l_votecodes = vc_list
-                        
+
                         vc_list = [hasher.encode(vc, part1.l_votecode_salt, \
                             part1.l_votecode_iterations, True)[0] \
                             for vc in vc_list]
-                        
+
                         vc_name = 'l_' + vc_name + '_hash'
-                    
+
                     # Get options for the requested votecodes
-                    
+
                     vc_filter = {vc_name + '__in': vc_list}
-                    
+
                     optionv_not_qs = optionv_qs.exclude(**vc_filter)
                     optionv_qs = optionv_qs.filter(**vc_filter)
-                    
+
                     # If lengths do not match, at least one votecode was invalid
-                    
+
                     if optionv_qs.count() != len(vc_list):
                         raise Exception('Invalid votecode')
-                    
+
                     # Save both voted and unvoted options
-                    
+
                     if election.vc_type == enums.VcType.SHORT:
-                        
+
                         optionv_qs.update(voted=True)
                         optionv_not_qs.update(voted=False)
                         optionv2_qs.update(voted=False)
-                        
+
                     elif election.vc_type == enums.VcType.LONG:
-                        
+
                         # Save the requested long votecodes
-                        
+
                         for optionv, l_votecode in zip(optionv_qs, l_votecodes):
                             optionv.voted = True
                             optionv.l_votecode = l_votecode
                             optionv.save(update_fields=['voted', 'l_votecode'])
-                        
+
                         optionv_not_qs.update(voted=False)
-                        
+
                         # Compute part2's long votecodes
-                        
+
                         for optionv2 in optionv2_qs:
-                            
+
                             msg = credential_int + (question.index * \
                                 max_options) + optionv2.votecode
                             bytes = int(math.ceil(msg.bit_length() / 8))
                             msg = intc.to_bytes(msg, bytes, 'big')
-                            
+
                             hmac_obj = hmac.new(key, msg, hashlib.sha256)
                             digest = intc.from_bytes(hmac_obj.digest(), 'big')
-                            
+
                             l_votecode = base32cf.\
                                 encode(digest)[-config.VOTECODE_LEN:]
-                            
+
                             optionv2.voted = False
                             optionv2.l_votecode = l_votecode
                             optionv2.save(update_fields=['voted', 'l_votecode'])
-                
+
                 # Save part2's security code
-                
+
                 part2.security_code = p2_security_code
                 part2.save(update_fields=['security_code'])
-        
+
         except Exception:
             logger.exception('VoteView: API error')
             return http.HttpResponse(status=422)
-        
+
         return http.HttpResponse()
 
 
 class ApiExportView(View):
+
     template_name = 'abb/export.html'
-    
+
     def __post_election(o, v, d):
         ''' o: objects, v: value, d: default '''
         return d if o['Election'].state != enums.State.COMPLETED else v
-    
+
     _namespaces = {
         'election': {
             'model': Election,
@@ -468,9 +469,9 @@ class ApiExportView(View):
     def as_patterns(cls):
 
         def _build_urlpatterns(ns):
-            
-            
+
             node = cls._namespaces[ns]
+
             urlpatterns = []
             for next in node['next']:
                 urlpatterns += _build_urlpatterns(next)
@@ -584,8 +585,9 @@ class ApiExportView(View):
                 fields = set(query_args.get(node['name'], node['namespaces']))
 
                 for next in node['next']:
-                    
+
                     name = cls._namespaces[next]['name'] + 's'
+
                     if name not in fields:
                         continue
 
@@ -628,6 +630,7 @@ class ApiExportView(View):
     def _export_file(cls, namespace, url_args, fieldname, filename=None):
 
         model = cls._namespaces[namespace]['model']
+
         kwflds = url_args.get(model.__name__, {})
         obj = get_object_or_404(model, **kwflds)
 
