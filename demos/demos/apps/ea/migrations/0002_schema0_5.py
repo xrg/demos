@@ -11,9 +11,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        migrations.AlterField(
             model_name='election',
-            name='parties_and_candidates',
-            field=models.BooleanField(default=False),
+            name='pkey_file',
+            field=models.FileField(upload_to=b'get_upload_file_path'),
         ),
     ]

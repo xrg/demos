@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vbb', '0001_initial'),
+        ('vbb', '0003_schema0_5'),
     ]
 
     operations = [

@@ -2,20 +2,18 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import demos.apps.bds.models
-import demos.common.utils.storage
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('bds', '0001_initial'),
+        ('abb', '0002_schema0_4'),
     ]
 
     operations = [
-        migrations.AddField(
+        migrations.AlterField(
             model_name='election',
-            name='parties_and_candidates',
-            field=models.BooleanField(default=False),
+            name='x509_cert',
+            field=models.FileField(upload_to=b'get_upload_file_path'),
         ),
     ]
