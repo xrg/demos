@@ -112,9 +112,8 @@
     text-overflow: ellipsis;
 }
 
-
-.text-elections,
-.text-referendum {
+.ctrl-elections,
+.ctrl-referendum {
     display: none;
 }
 

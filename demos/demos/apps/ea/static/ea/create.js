@@ -48,26 +48,25 @@ $(".date [data-toggle='tooltip']").click(function(e) {
 
 // Elections/Referendum --------------------------------------------------------
 
-$("#id_election-voting_type").on("change", function(e) {
+function election_type_change_handler() {
     
-    var new_value = this.value;
+    var new_value = $("#id_election-election_type").val()
     
     if (new_value != "elections" && new_value != "referendum") {
-        $("#question-table").fadeOut();
+        $(".ctrl-elections, .ctrl-referendum, #question-table").fadeOut();
         return;
     }
     
-    var old_value = this.value == "referendum" ? "elections" : "referendum";
+    var old_value = new_value == "referendum" ? "elections" : "referendum";
     
-    $(".text-" + old_value).fadeOut(200, function() {
-        $(".text-" + new_value).fadeIn();
+    $(".ctrl-" + old_value).fadeOut(200, function() {
+        $(".ctrl-" + new_value).fadeIn();
     });
     
-    $(".input-group-addon.text-" + old_value).css("display", "none");
-    $(".input-group-addon.text-" + new_value).css("display", "table-cell");
+    $(".btn > .ctrl-" + new_value).css("display", "inline");
+    $(".input-group-addon > .ctrl-" + new_value).css("display", "inline");
     
     $("#qed").toggleClass("hidden", new_value != "referendum");
-    $("#id_election-choices").prop("disabled", new_value != "elections");
     
     $(".elections-or-referendum[data-toggle='tooltip']").each(function(index) {
         
@@ -79,7 +78,9 @@ $("#id_election-voting_type").on("change", function(e) {
     });
     
     $("#question-table").fadeIn();
-});
+}
+
+$("#id_election-election_type").on("change", election_type_change_handler);
 
 // Question sortable -----------------------------------------------------------
 
@@ -242,7 +243,7 @@ function show_question(question) {
     
     var modal_title = question_modal.find(".modal-title");
     
-    var b0 = ($("#id_election-voting_type").val() == "elections");
+    var b0 = ($("#id_election-election_type").val() == "elections");
     var b1 = (typeof question.data("question-data") === "undefined");
     
     var title_attr;
@@ -482,7 +483,7 @@ function update_option_list(question) {
         
         // Update visible text
         
-        var text = labels.add(inputs.siblings(".text-elections, .text-referendum"));
+        var text = labels.add(inputs.prev().children(".index"));
         
         text.each(function(i, e) {
             $(this).text($(this).text().replace(/\d+/, new_index + 1));
@@ -827,10 +828,12 @@ $("form").find(".question").each(function(index, element) {
     register_option_sortable(question);
 });
 
-// Enable tolltips
+// Enable tooltips
 
 $("body").tooltip({
     selector: "[data-toggle='tooltip']",
 });
 
-$("#id_election-voting_type").trigger("change");
+// Show question or party table
+
+election_type_change_handler();

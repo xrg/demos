@@ -17,7 +17,7 @@
 <div class="row">
     <div class="col-xs-12">
         
-        {% tuple _("Election") election.id as t1 %}
+        {% tuple _("Election ID") election.id as t1 %}
         {% tuple _("Participants") participants as t2 %}
         {% tuple t1 t2 as panels %}
         {% include "common/election_box.html" with object=election panels=panels %}
@@ -31,7 +31,7 @@
         
         {% for question in questions %}
         <div class="panel panel-default">
-            <div class="panel-heading">{% if not election.parties_and_candidates %}{% trans "Question" %}{% else %}{% trans "Candidate" %}{% endif %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}: {{ question.text }}</div>
+            <div class="panel-heading">{% trans "Question" %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}: {{ question.text }}</div>
             <div class="list-group">
                 {% for optionc in question.optionc_set.all %}
                 <a class="list-group-item">{{ optionc.text }}<span class="badge">{{ optionc.votes|floatdiv:question.optionc__votes__sum|default:'0'|floatmul:'100'|floatformat:1 }} %</span></a>

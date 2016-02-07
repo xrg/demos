@@ -17,21 +17,19 @@ except ImportError:
     from urlparse import urljoin
 
 from django import http
-from django.db import transaction
 from django.apps import apps
 from django.utils import timezone
-from django.db.models import Count, Max
+from django.db.models import Max
 from django.shortcuts import render, redirect
 from django.middleware import csrf
 from django.views.generic import View
 from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
-from django.core.urlresolvers import reverse
 
 from demos.apps.vbb.models import Election, Question, Ballot, Part, \
-    OptionV, OptionC
+    OptionV
 
-from demos.common.utils import api, base32cf, dbsetup, enums, hashers, intc
+from demos.common.utils import api, base32cf, enums, hashers, intc
 from demos.common.utils.config import registry
 
 logger = logging.getLogger(__name__)
@@ -252,8 +250,7 @@ class VoteView(View):
         else:
             
             status = 200
-            max_options = question_qs.\
-                annotate(Count('optionc')).aggregate(Max('optionc__count'))
+            max_options = question_qs.aggregate(Max('options'))['options__max']
             abb_url = urljoin(config.URL['abb'], quote('%s/' % election_id))
             security_code_hash2_split = part1.security_code_hash2.split('$')
             
@@ -266,7 +263,7 @@ class VoteView(View):
                 'abb_url': abb_url,
                 'credential': credential,
                 'votecode_len': config.VOTECODE_LEN,
-                'max_options': max_options['optionc__count__max'],
+                'max_options': max_options,
                 'sc_iterations': security_code_hash2_split[2],
                 'sc_salt': security_code_hash2_split[1][::-1],
                 'sc_length': config.SECURITY_CODE_LEN,
@@ -274,6 +271,7 @@ class VoteView(View):
         
         context.update({
             'timezone_now': now,
+            'VcType': enums.VcType.get_valueitems(prefix=False),
             'State': VoteView.State.get_valueitems(prefix=False),
         })
         
@@ -343,16 +341,14 @@ class VoteView(View):
             
             # Verify vote_obj's structure validity
             
-            q_options = dict(question_qs.annotate(\
-                Count('optionc')).values_list('index', 'optionc__count'))
+            q_options = dict(question_qs.values_list('index', 'options'))
             
-            vc_type = string_types if election.long_votecodes else integer_types
+            vc_type = integer_types if election.vc_type == enums.VcType.SHORT \
+                                    else string_types
             
             try:
                 if not (isinstance(vote_obj, dict)
-                    and ((not election.parties_and_candidates
-                    and len(vote_obj)== len(q_options))
-                    or (election.parties_and_candidates and len(vote_obj) == 1))
+                    and len(vote_obj) == len(q_options)
                     and all(isinstance(q_index, string_types)
                     and isinstance(vc_list, list)
                     and 1 <= len(vc_list) <= q_options.get(int(q_index), -1)
@@ -376,32 +372,28 @@ class VoteView(View):
             try:
                 for question in question_qs.iterator():
                     
-                    if election.parties_and_candidates and \
-                        str(question.index) not in vote_obj:
-                        continue
-                    
                     optionv_qs = OptionV.objects.\
                         filter(part=part1, question=question)
                     
-                    vc_type = 'votecode'
+                    vc_name = 'votecode'
                     vc_list = vote_obj[str(question.index)]
                     
                     # Long votecode version: use hashes instead of votecodes
                     
-                    if election.long_votecodes:
+                    if election.vc_type == enums.VcType.LONG:
                         
                         vc_list = [hasher.encode(vc, part1.l_votecode_salt, \
                             part1.l_votecode_iterations, True)[0] \
                             for vc in vc_list]
                         
-                        vc_type = 'l_' + vc_type + '_hash'
+                        vc_name = 'l_' + vc_name + '_hash'
                     
                     # Get options for the requested votecodes
                     
-                    vc_filter = {vc_type + '__in': vc_list}
+                    vc_filter = {vc_name + '__in': vc_list}
                     
                     optionvs = dict(optionv_qs.filter(**vc_filter).\
-                        values_list(vc_type, 'receipt'))
+                        values_list(vc_name, 'receipt'))
                     
                     # Return receipt list in the correct order
                     
@@ -416,20 +408,18 @@ class VoteView(View):
                 
                 # Send vote data to the abb server
                 
-                abb_session = api.Session('abb', app_config)
+                abb_session = api.ApiSession('abb', app_config)
                 
                 data = {
-                    'votedata': json.dumps({
-                        'e_id': election.id,
-                        'b_serial': ballot.serial,
-                        'b_credential': credential,
-                        'p1_index': part1.index,
-                        'p1_votecodes': vote_obj,
-                        'p2_security_code': security_code,
-                    })
+                    'e_id': election.id,
+                    'b_serial': ballot.serial,
+                    'b_credential': credential,
+                    'p1_index': part1.index,
+                    'p1_votecodes': vote_obj,
+                    'p2_security_code': security_code,
                 }
                 
-                abb_session.post('command/vote/', data)
+                abb_session.post('api/vote/', data, json=True)
                 
                 ballot.used = True
                 ballot.save(update_fields=['used'])
@@ -458,64 +448,26 @@ class QRCodeScannerView(View):
         return render(request, self.template_name, {})
 
 
-class SetupView(View):
+# API Views --------------------------------------------------------------------
+
+class ApiSetupView(api.ApiSetupView):
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiSetupView, self).__init__(*args, **kwargs)
     
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(SetupView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
-        try:
-            task = request.POST['task']
-            election_obj = json.loads(request.POST['payload'])
-            
-            if task == 'election':
-                dbsetup.election(election_obj, app_config)
-            elif task == 'ballot':
-                dbsetup.ballot(election_obj, app_config)
-            else:
-                raise Exception('SetupView: Invalid POST task: %s' % task)
-        except Exception:
-            logger.exception('SetupView: API error')
-            return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+        return super(ApiSetupView, self).dispatch(*args, **kwargs)
 
 
-class UpdateView(View):
+class ApiUpdateView(api.ApiUpdateView):
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['app_config'] = app_config
+        super(ApiUpdateView, self).__init__(*args, **kwargs)
     
     @method_decorator(api.user_required('ea'))
     def dispatch(self, *args, **kwargs):
-        return super(UpdateView, self).dispatch(*args, **kwargs)
-    
-    def get(self, request):
-        csrf.get_token(request)
-        return http.HttpResponse()
-    
-    def post(self, request, *args, **kwargs):
-        
-        try:
-            data = json.loads(request.POST['data'])
-            model = app_config.get_model(data['model'])
-            
-            fields = data['fields']
-            natural_key = data['natural_key']
-            
-            obj = model.objects.get_by_natural_key(**natural_key)
-            
-            for name, value in fields.items():
-                setattr(obj, name, value)
-            
-            obj.save(update_fields=list(fields.keys()))
-            
-        except Exception:
-            logger.exception('UpdateView: API error')
-            return http.HttpResponse(status=422)
-        
-        return http.HttpResponse()
+        return super(ApiUpdateView, self).dispatch(*args, **kwargs)
 

@@ -17,7 +17,7 @@
 <div class="row">
     <div class="col-xs-12">
         
-        {% tuple _("Election") election.id as t1 %}
+        {% tuple _("Election ID") election.id as t1 %}
         {% tuple _("Participants") participants as t2 %}
         {% tuple t1 t2 as panels %}
         {% include "common/election_box.html" with object=election panels=panels %}
@@ -29,7 +29,7 @@
                     <h3>{% trans "Export Data" %}</h3>
                 </div>
                 
-                <a class="btn btn-default" href="{% url 'abb-api:export:election:data' Election__id=election.id %}" role="button">{% trans "Export ballots" %}</a>
+                <a class="btn btn-default" href="{% url 'abb-api:export:election:data' Election__id=election.id %}" role="button">{% trans "Export ballot data" %}</a>
                 <a class="btn btn-default" href="{% url 'abb-api:export:election:data' Election__id=election.id %}?election=cert" role="button">{% trans "Export certificate" %}</a>
                 
             </div>
@@ -68,7 +68,7 @@
                     <div role="tabpanel" class="tab-pane fade {% if forloop.first %}active in{% endif %}" id="part-{{ part }}">
                         {% for question in questions %}
                         <div class="panel panel-default hidden">
-                            <div class="panel-heading">{% if not election.parties_and_candidates %}{% trans "Question" %}{% else %}{% trans "Candidate" %}{% endif %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}: {{ question.text }}</div>
+                            <div class="panel-heading">{% trans "Question" %}{% if questions|length > 1 %} {{ question.index|add:"1" }}{% endif %}: {{ question.text }}</div>
                             <div class="panel-table">
                                 <table class="table table-hover">
                                     <thead>
@@ -140,8 +140,10 @@
 <script src="{% static 'common/permutation.js' %}"></script>
 
 <script>
-    var long_votecodes = {{ election.long_votecodes|yesno:'true,false' }};
+    var vc_type = {{ election.vc_type }};
     var e_url = "{% url 'abb-api:export:election:data' Election__id=election.id %}";
+    
+    var VcType = { {% for name, value in VcType.items %} {{ name }}: {{ value }}, {% endfor %} };
 </script>
 
 <script src="{% static 'abb/audit.js' %}"></script>

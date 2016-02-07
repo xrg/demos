@@ -19,9 +19,9 @@ class Election(models.Model):
     end_datetime = models.DateTimeField()
     
     state = fields.IntEnumField(cls=enums.State)
-    
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
+
+    type = fields.IntEnumField(cls=enums.Type)
+    vc_type = fields.IntEnumField(cls=enums.VcType)
     
     ballots = models.PositiveIntegerField()
     
@@ -119,6 +119,8 @@ class Question(models.Model):
     
     index = models.PositiveSmallIntegerField()
     columns = models.BooleanField(default=False)
+
+    options = models.PositiveSmallIntegerField()
     
     # Other model methods and meta options
     

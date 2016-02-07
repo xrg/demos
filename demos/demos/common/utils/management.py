@@ -121,18 +121,15 @@ class UserCommand(BaseCommand):
             if password != password2:
                 self.stderr.write("Error: The passwords didn't match.")
                 password = None
-                continue
                 
-            if password.strip() == "":
+            elif password.strip() == "":
                 self.stderr.write("Error: Blank passwords aren't allowed.")
                 password = None
-                continue
             
-            if len(password) > max_password:
-                self.stderr.write("Error: The passwords is longen than %s " \
+            elif len(password) > max_password:
+                self.stderr.write("Error: The passwords is longer than %s " \
                     "characters." % max_password)
                 password = None
-                continue
         
         return password
 

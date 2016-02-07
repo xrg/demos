@@ -31,10 +31,10 @@ class Election(models.Model):
     end_datetime = models.DateTimeField()
     
     state = fields.IntEnumField(cls=enums.State)
-    
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
-    
+
+    type = fields.IntEnumField(cls=enums.Type)
+    vc_type = fields.IntEnumField(cls=enums.VcType)
+
     ballots = models.PositiveIntegerField()
     
     cert = models.FileField(upload_to=get_cert_file_path, storage=fs_root)
@@ -52,7 +52,7 @@ class Election(models.Model):
         return "%s - %s" % (self.id, self.title)
     
     def get_absolute_url(self):
-        return urlresolvers.reverse('abb:', args=[self.id])
+        return urlresolvers.reverse('abb:results', args=[self.id])
     
     class Meta:
         ordering = ['id']
@@ -142,6 +142,8 @@ class Question(models.Model):
     
     key = fields.ProtoField(cls=crypto.Key)
     index = models.PositiveSmallIntegerField()
+
+    options = models.PositiveSmallIntegerField()
     
     # Post-vote data
     

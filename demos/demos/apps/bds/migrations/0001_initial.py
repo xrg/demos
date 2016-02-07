@@ -4,8 +4,8 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 import demos.apps.bds.models
 import demos.common.utils.fields
-import demos.common.utils.enums
 import demos.common.utils.storage
+import demos.common.utils.enums
 
 
 class Migration(migrations.Migration):
@@ -17,9 +17,9 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Ballot',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('serial', models.PositiveIntegerField()),
-                ('pdf', models.FileField(storage=demos.common.utils.storage.PrivateTarFileStorage(tar_directory_permissions_mode=448, location='/var/spool/demos-voting/bds/ballots', tar_permissions_mode=384, tar_file_permissions_mode=384), upload_to=demos.apps.bds.models.get_ballot_file_path)),
+                ('pdf', models.FileField(storage=demos.common.utils.storage.PrivateTarFileStorage(tar_directory_permissions_mode=448, tar_file_permissions_mode=384, tar_permissions_mode=384, location='/home/marios/demos/devel/data/bds/ballots'), upload_to=demos.apps.bds.models.get_ballot_file_path)),
             ],
             options={
                 'ordering': ['election', 'serial'],
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Config',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('key', models.CharField(unique=True, max_length=128)),
                 ('value', models.CharField(max_length=128)),
             ],
@@ -43,8 +43,10 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=128)),
                 ('start_datetime', models.DateTimeField()),
                 ('end_datetime', models.DateTimeField()),
-                ('long_votecodes', models.BooleanField()),
-                ('state', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.State)),
+                ('state', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.State, choices=[(1, b'draft'), (2, b'pending'), (3, b'working'), (4, b'running'), (5, b'completed'), (6, b'paused'), (7, b'error'), (8, b'template')])),
+                ('type', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.Type, choices=[(1, b'elections'), (2, b'referendum')])),
+                ('vc_type', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.VcType, choices=[(1, b'short'), (2, b'long')])),
+                ('ballots', models.PositiveIntegerField()),
             ],
             options={
                 'ordering': ['id'],
@@ -53,8 +55,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Part',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
-                ('index', models.CharField(choices=[('A', 'A'), ('B', 'B')], max_length=1)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('index', models.CharField(max_length=1, choices=[('A', 'A'), ('B', 'B')])),
                 ('vote_token', models.TextField()),
                 ('security_code', models.CharField(max_length=8)),
                 ('ballot', models.ForeignKey(to='bds.Ballot')),
@@ -66,7 +68,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RemoteUser',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('username', models.CharField(unique=True, max_length=128)),
                 ('password', models.CharField(max_length=128)),
             ],
@@ -77,14 +79,14 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Trustee',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, primary_key=True, auto_created=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('email', models.EmailField(max_length=254)),
             ],
         ),
         migrations.CreateModel(
             name='Task',
             fields=[
-                ('election', models.OneToOneField(to='bds.Election', serialize=False, primary_key=True)),
+                ('election', models.OneToOneField(primary_key=True, serialize=False, to='bds.Election')),
                 ('task_id', models.UUIDField()),
             ],
         ),

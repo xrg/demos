@@ -1,27 +1,31 @@
 # File: urls.py
 
-from django.conf.urls import patterns, include, url
-from demos.common.utils import api, base32cf
-from demos.apps.ea import views
+from django.conf.urls import include, url
 from django.contrib.auth.decorators import login_required
+from demos.apps.ea import views
+from demos.common.utils import base32cf
 
-urlpatterns = patterns('',
+
+urlpatterns = [
     
     url(r'^$', views.HomeView.as_view(), name='home'),
-    url(r'^create/$', login_required(views.CreateView.as_view()), name='create'),
-    url(r'^status/(?:(?P<election_id>[' + base32cf._valid_re + r']+)/)?$',
-                login_required(views.StatusView.as_view()), name='status'),
-    url(r'^center/$', views.CenterView.as_view(), name='center'),
-)
+    
+    url(r'^create/$', login_required(views.CreateView.as_view()), \
+        name='create'),
+    
+    url(r'^status/(?:(?P<election_id>[' + base32cf._valid_re + r']+)/)?$', \
+        login_required(views.StatusView.as_view()), name='status'),
+        
+    url(r'^center/$', login_required(views.CenterView.as_view()), \
+        name='center'),
+]
 
 apipatterns = [
     
-    url(r'^command/', include([
-        url(r'^updatestate/$', views.UpdateStateView.as_view(), name='updatestate'),
-        url(r'^cryptotools/(?P<command>add_com|add_decom|complete_zk|verify_com)/$', views.CryptoToolsView.as_view(), name='cryptotools'),
-    ], namespace='command')),
-    url(r'^auth/', include([
-        url(r'^login/$', api.login, name='login'),
-        url(r'^logout/$', api.logout, name='logout'),
-    ], namespace='auth')),
+    url(r'^updatestate/$', views.ApiUpdateStateView.as_view(), \
+        name='updatestate'),
+    
+    url(r'^crypto/(?P<command>add_com|add_decom|complete_zk|verify_com)/$', \
+        views.ApiCryptoView.as_view(), name='crypto'),
 ]
+

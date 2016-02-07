@@ -4,6 +4,7 @@ import os
 
 from django.db import models
 from django.core import urlresolvers
+from django.contrib.auth.models import User
 
 from demos.common.utils import enums, fields, storage
 from demos.common.utils.config import registry
@@ -21,9 +22,14 @@ class Election(models.Model):
     end_datetime = models.DateTimeField()
     
     state = fields.IntEnumField(cls=enums.State)
+
+    type = fields.IntEnumField(cls=enums.Type)
+    vc_type = fields.IntEnumField(cls=enums.VcType)
+
+    ballots = models.PositiveIntegerField()
     
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
+    user = models.ForeignKey(User, related_name='+')
+    
     
     # Other model methods and meta options
     
@@ -31,7 +37,7 @@ class Election(models.Model):
         return "%s - %s" % (self.id, self.title)
     
     def get_absolute_url(self):
-        return urlresolvers.reverse('bds:', args=[self.id])
+        return urlresolvers.reverse('bds:manage', args=[self.id])
     
     class Meta:
         ordering = ['id']
@@ -62,6 +68,8 @@ class Ballot(models.Model):
     
     serial = models.PositiveIntegerField()
     pdf = models.FileField(upload_to=get_ballot_file_path, storage=ballot_fs)
+    
+    user = models.ForeignKey(User, blank=True, null=True, default=None)
     
     # Other model methods and meta options
     
@@ -109,30 +117,6 @@ class Part(models.Model):
     
     def natural_key(self):
         return (self.index,) + self.ballot.natural_key()
-
-
-class Trustee(models.Model):
-    
-    election = models.ForeignKey(Election)
-    
-    email = models.EmailField()
-    
-    # Other model methods and meta options
-    
-    def __str__(self):
-        return "%s" % self.email
-    
-    class Meta:
-        unique_together = ['election', 'email']
-    
-    class TrusteeManager(models.Manager):
-        def get_by_natural_key(self, t_email, e_id):
-            return self.get(election__id=e_id, email=t_email)
-    
-    objects = TrusteeManager()
-    
-    def natural_key(self):
-        return (self.email,) + self.election.natural_key()
 
 
 class Task(models.Model):

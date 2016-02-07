@@ -2,7 +2,6 @@
 
 from __future__ import division
 
-import json
 import random
 import logging
 
@@ -23,6 +22,7 @@ from django.shortcuts import render, redirect
 from django.middleware import csrf
 from django.views.generic import View
 from django.core.exceptions import ValidationError
+from django.core.serializers import serialize
 from django.utils.decorators import method_decorator
 from django.core.urlresolvers import reverse
 
@@ -30,13 +30,13 @@ from celery.result import AsyncResult
 
 from demos.apps.ea.forms import ElectionForm, OptionFormSet, \
     PartialQuestionFormSet, BaseQuestionFormSet
-from demos.apps.ea.tasks import api_update, cryptotools, election_setup, pdf
-from demos.apps.ea.models import Config, Election, OptionC, OptionV, Task
+from demos.apps.ea.tasks import cryptotools, election_setup, pdf
+from demos.apps.ea.models import Config, Election, Question, OptionV, Task
+from demos.apps.ea.tasks.setup import _remote_app_update
 
 from demos.common.utils import api, base32cf, crypto, enums
 from demos.common.utils.json import CustomJSONEncoder
 from demos.common.utils.config import registry
-from demos.common.utils.dbsetup import _prep_kwargs
 from django.utils.translation import ugettext as _
 
 logger = logging.getLogger(__name__)
@@ -119,20 +119,19 @@ class CreateView(View):
             
             election_obj['__list_Question__'] = []
             
-            pac = election_obj['parties_and_candidates']
-            
             for q_index, (question_form, option_formset) \
                 in enumerate(zip(question_formset, option_formsets)):
                 
                 question_obj = {
                     'index': q_index,
                     'text': question_form.cleaned_data['question'],
-                    'columns': question_form.cleaned_data['columns'] \
-                        if not pac else False,
+                    'options': len(option_formset),
                     'choices': question_form.cleaned_data['choices'] \
-                        if not pac else (len(option_formset) if \
-                        len(option_formset) < election_obj['choices'] \
-                        else election_obj['choices']),
+                        if election_obj['type'] == enums.Type.REFERENDUM \
+                        else min(len(option_formset), election_obj['choices']),
+                    'columns': question_form.cleaned_data['columns'] \
+                        if election_obj['type'] == enums.Type.REFERENDUM \
+                        else False,
                     '__list_OptionC__': [],
                 }
                 
@@ -153,11 +152,11 @@ class CreateView(View):
             
             if request.is_ajax():
                 
-                q_options_list = [len(qo['__list_OptionC__'])
-                    for qo in election_obj['__list_Question__']]
+                q_options_list = [q_obj['options'] \
+                    for q_obj in election_obj['__list_Question__']]
                 
-                vc_type = 'votecode' \
-                    if not election_obj['long_votecodes'] else 'l_votecode'
+                vc_name = ('l_' if election_obj['vc_type'] == \
+                    enums.VcType.LONG else '') + 'votecode'
                 
                 # Create a sample ballot. Since this is not a real ballot,
                 # pseudo-random number generators are used instead of urandom.
@@ -172,8 +171,8 @@ class CreateView(View):
                     part_obj = {
                         'index': p_index,
                         'vote_token': 'vote_token',
-                        'security_code': base32cf.random(
-                            config.SECURITY_CODE_LEN, urandom=False),
+                        'security_code': base32cf.random(config.\
+                            SECURITY_CODE_LEN, urandom=False),
                         '__list_Question__': [],
                     }
                     
@@ -183,19 +182,19 @@ class CreateView(View):
                             '__list_OptionV__': [],
                         }
                         
-                        if not election_obj['long_votecodes']:
+                        if election_obj['vc_type'] == enums.VcType.SHORT:
                             votecode_list = list(range(1, options + 1))
                             random.shuffle(votecode_list)
-                        else:
+                        elif election_obj['vc_type'] == enums.VcType.LONG:
                             votecode_list=[base32cf.random(config.VOTECODE_LEN,
                                 urandom=False) for _ in range(options)]
                         
                         for votecode in votecode_list:
                             
                             data_obj = {
-                                vc_type: votecode,
-                                'receipt': base32cf.random(
-                                    config.RECEIPT_LEN, urandom=False),
+                                vc_name: votecode,
+                                'receipt': base32cf.random(config.\
+                                    RECEIPT_LEN, urandom=False),
                             }
                             
                             question_obj['__list_OptionV__'].append(data_obj)
@@ -233,12 +232,20 @@ class CreateView(View):
                     config_.save(update_fields=['value'])
                 
                 election_obj['id'] = election_id
+                election_obj['user'] = request.user
                 election_obj['state'] = enums.State.PENDING
                 
                 # Create the new election object
                 
-                election_kwargs = _prep_kwargs(election_obj, Election)
-                election = Election.objects.create(**election_kwargs)
+                e_kwargs = {
+                    field.name: election_obj[field.name] for field \
+                    in Election._meta.get_fields() if field.name in election_obj
+                }
+                
+                election = Election.objects.create(**e_kwargs)
+                
+                election_obj['user'] = serialize('json', [ election_obj['user'] ], \
+                    use_natural_foreign_keys=True, use_natural_primary_keys=True)
                 
                 # Prepare and start the election_setup task
                 
@@ -292,7 +299,10 @@ class StatusView(View):
             election = None
         
         if not election:
-           return redirect(reverse('ea:home') + '?error=id')
+            return redirect(reverse('ea:home') + '?error=id')
+        
+        if election.user != request.user:
+            return redirect(reverse('ea:home') + '?error=perm')
         
         abb_url = urljoin(config.URL['abb'], quote("results/%s/" % election_id))
         bds_url = urljoin(config.URL['bds'], quote("manage/%s/" % election_id))
@@ -319,6 +329,9 @@ class StatusView(View):
         try: # Return election creation progress
             
             election = Election.objects.get(id=election_id)
+            
+            if election.user != request.user:
+                return http.HttpResponseForbidden()
             
             celery = Task.objects.get(election=election)
             task = AsyncResult(str(celery.task_id))
@@ -366,34 +379,64 @@ class StatusView(View):
         return http.JsonResponse(response)
 
 
-class CryptoToolsView(View):
+class CenterView(View):
+    
+    template_name = 'ea/center.html'
+    
+    def get(self, request):
+
+        
+        abb_url = urljoin(config.URL['abb'], 'results/')
+        bds_url = urljoin(config.URL['bds'], 'manage/')
+        
+        context = {
+            'abb_url': abb_url,
+            'bds_url': bds_url,
+            'elections': Election.objects.filter(user=request.user),
+        }
+
+        return render(request, self.template_name, context)
+
+
+# API Views --------------------------------------------------------------------
+
+class ApiCryptoView(View):
     
     @method_decorator(api.user_required('abb'))
     def dispatch(self, *args, **kwargs):
-        return super(CryptoToolsView, self).dispatch(*args, **kwargs)
+        return super(ApiCryptoView, self).dispatch(*args, **kwargs)
     
     def get(self, request, *args, **kwargs):
         csrf.get_token(request)
         return http.HttpResponse()
     
     @staticmethod
-    def _deserialize(field, cls):
+    def _deserialize(field_or_list, pb_cls):
         
-        # Deserialize base64-encoded pb message
+        is_field = not isinstance(field_or_list, (list, tuple))
+        field_list = [ field_or_list ] if is_field else field_or_list
         
-        field = field.encode('ascii')
-        field = b64decode(field)
+        # Deserialize a list of base64-encoded pb messages
         
-        pb_field = cls()
-        pb_field.ParseFromString(field)
+        pb_field_list = []
         
-        return pb_field
+        for field in field_list:
+            
+            field = field.encode('ascii')
+            field = b64decode(field)
+            
+            pb_field = pb_cls()
+            pb_field.ParseFromString(field)
+            
+            pb_field_list.append(pb_field)
+        
+        return pb_field_list[0] if is_field else pb_field_list
     
     def post(self, request, *args, **kwargs):
         
         try:
             command = kwargs.pop('command')
-            request_obj = json.loads(request.POST['data'])
+            request_obj = api.ApiSession.load_json_request(request.POST)
             
             # Get common request data
             
@@ -406,73 +449,127 @@ class CryptoToolsView(View):
             
             if command == 'add_com':
                 
-                # Input is a list of base64-encoded 'com' fields, returns 'com'.
+                # Input is a list of base64-encoded 'com' fields, returns 'com'
                 
-                com_list = [self._deserialize(com, crypto.Com) \
-                    for com in request_obj['com_list']]
+                com_list=self._deserialize(request_obj['com_list'], crypto.Com)
                 
-                response = cryptotools.add_com(key, com_list)
-            
+                # Add 'com' fields
+                com = None
+                for lo in range(0, len(com_list), config.BATCH_SIZE):
+                    hi = lo + min(config.BATCH_SIZE, len(com_list) - lo)
+                    
+                    com_buf = com_list[lo: hi]
+                    
+                    if com is not None:
+                        com_buf.append(com)
+                    
+                    com = cryptotools.add_com(key, com_buf)
+                
+                # Special case: no ballots
+                
+                if len(com_list) == 0:
+                    com = cryptotools.add_com(key, [])
+                
+                response = com
+                
             elif command == 'add_decom':
                 
-                # Input is a list of 3-tuples: (b_serial, p_index,
-                # o_index_list), returns 'decom'.
+                # Input is a list of 3-tuples: (b_serial, p_index, o_index_list)
+                # returns 'decom'
                 
                 ballots = request_obj['ballots']
                 
-                decom = crypto.Decom()
-                decom.randomness = ''
-                decom.msg = ''
+                # Add 'decom' fields
                 
-                for lo in range(0, len(ballots), config.BATCH_SIZE):
-                    hi = lo + min(config.BATCH_SIZE, len(ballots) - lo)
-                    
-                    decom_list = [] if lo == 0 else [decom]
-                    
-                    for b_serial, p_index, o_index_list in ballots[lo: hi]:
-                        
-                        _decom_list = OptionV.objects.filter(
-                            part__ballot__election__id=e_id,
-                            part__ballot__serial=b_serial,
-                            part__index=p_index,
-                            question__index=q_index,
-                            index__in=o_index_list,
-                        ).values_list('decom', flat=True)
-                        
-                        decom_list.extend(_decom_list)
-                    
-                    decom = cryptotools.add_decom(key, decom_list)
+                decom_buf = []
                 
-                response = decom
+                for b_serial, p_index, o_index_list in ballots:
+                    
+                    optionv_qs = OptionV.objects.filter(
+                        part__ballot__election__id=e_id, part__ballot__serial=
+                        b_serial, question__index=q_index, part__index=p_index
+                    )
+                    
+                    for lo in range(0, len(o_index_list), config.BATCH_SIZE):
+                        hi = lo + min(config.BATCH_SIZE, len(o_index_list) - lo)
+                        
+                        _qs = optionv_qs.filter(index__in=o_index_list[lo:hi])
+                        decom_buf.extend(_qs.values_list('decom', flat=True))
+                        
+                        # Flush the buffer
+                        
+                        if len(decom_buf) > config.BATCH_SIZE:
+                            
+                            decom = cryptotools.add_decom(key, decom_buf)
+                            decom_buf = [ decom ]
+                
+                # Return the combined decom (len = 1), flush the non-empty
+                # buffer (len > 1), or add the empty list (len = 0, generates
+                # an empty decom)
+                
+                response = decom_buf[0] if len(decom_buf) == 1 \
+                    else cryptotools.add_decom(key, decom_buf)
                 
             elif command == 'complete_zk':
                 
-                # Input is a list of 3-tuples: (b_serial, p_index, zk1_list),
-                # where zk1_list is the list of all zk1 fields of this ballot
-                # part, in ascending index order. Returns a list of zk2 lists,
-                # in the same order.
-                
-                response = []
+                # Input is a list of 3-tuples: (b_serial, p_index, o_iz_list),
+                # where o_iz_list is the list of 2-tuples: (o_index, zk1).
+                # Returns a list of zk2 lists, in the same order.
                 
                 coins = request_obj['coins']
                 ballots = request_obj['ballots']
                 
-                options = OptionC.objects.filter(question__election__id=e_id, \
-                    question__index=q_index).count()
+                options = Question.objects.only('options').\
+                    get(index=q_index, election__id=e_id).options
                 
-                for b_serial, p_index, zk1_list in ballots:
+                # Compute 'zk2' fields
+                
+                zk_buf = []
+                zk2_list = []
+                
+                for b_serial, p_index, o_iz_list in ballots:
                     
-                    zk1_list = [self._deserialize(zk1, crypto.ZK1) \
-                        for zk1 in zk1_list]
+                    optionv_qs = OptionV.objects.filter(
+                        part__index=p_index, part__ballot__serial=b_serial
+                    )
                     
-                    zk_state_list = OptionV.objects.filter(part__index=\
-                        p_index, part__ballot__serial=b_serial).\
-                        values_list('zk_state', flat=True)
+                    for lo in range(0, len(o_iz_list), config.BATCH_SIZE):
+                        hi = lo + min(config.BATCH_SIZE, len(o_iz_list) - lo)
+                        
+                        o_index_list, zk1_list = zip(*o_iz_list)
+                        zk1_list = self._deserialize(zk1_list, crypto.ZK1)
+                        
+                        _qs = optionv_qs.filter(index__in=o_index_list[lo:hi])
+                        zk_state_list = _qs.values_list('zk_state', flat=True)
+                        
+                        zk_buf.extend(zip(zk1_list, zk_state_list))
+                        
+                        # Flush the buffer
+                        
+                        if len(zk_buf) > config.BATCH_SIZE:
+                            
+                            zk2_list.extend(cryptotools.\
+                                complete_zk(key, options, coins, zk_buf))
+                            zk_buf = []
+                
+                # Flush non-empty buffer
+                
+                if zk_buf:
                     
-                    zk_list = list(zip(zk1_list, zk_state_list))
-                    zk2_list=cryptotools.complete_zk(key,options,coins,zk_list)
+                    zk2_list.extend(cryptotools.\
+                        complete_zk(key, options, coins, zk_buf))
+                
+                # Re-create input's structure
+                
+                lo = hi = 0
+                response = []
+                
+                for x_, y_, o_iz_list in ballots:
                     
-                    response.append(zk2_list)
+                    lo = hi
+                    hi = lo + len(o_iz_list)
+                    
+                    response.append(zk2_list[lo: hi])
                 
             elif command == 'verify_com':
                 
@@ -487,23 +584,24 @@ class CryptoToolsView(View):
             logger.exception('CryptoToolsView: API error')
             return http.HttpResponse(status=422)
         
-        return http.JsonResponse(response,safe=False, encoder=CustomJSONEncoder)
+        return http.JsonResponse(response,safe=False,encoder=CustomJSONEncoder)
 
 
-class UpdateStateView(View):
+class ApiUpdateStateView(View):
     
     @method_decorator(api.user_required(['abb', 'vbb', 'bds']))
     def dispatch(self, *args, **kwargs):
-        return super(UpdateStateView, self).dispatch(*args, **kwargs)
+        return super(ApiUpdateStateView, self).dispatch(*args, **kwargs)
     
     def get(self, request):
+        
         csrf.get_token(request)
         return http.HttpResponse()
     
     def post(self, request, *args, **kwargs):
         
         try:
-            data = json.loads(request.POST['data'])
+            data = api.ApiSession.load_json_request(request.POST)
             
             e_id = data['e_id']
             election = Election.objects.get(id=e_id)
@@ -539,35 +637,16 @@ class UpdateStateView(View):
                 },
             }
             
-            api_session = {app_name: api.Session(app_name, app_config)
+            api_session = {app_name: api.ApiSession(app_name, app_config)
                 for app_name in ['abb','vbb','bds'] if not app_name == username}
             
             for app_name in api_session.keys():
-                api_update(app_name, data=data, api_session=api_session, \
-                    url_path='manage/update/');
+                _remote_app_update(app_name, data=data, \
+                    api_session=api_session, url_path='api/update/');
             
         except Exception:
             logger.exception('UpdateStateView: API error')
             return http.HttpResponse(status=422)
         
         return http.HttpResponse()
-
-
-class CenterView(View):
-    
-    template_name = 'ea/center.html'
-    
-    def get(self, request):
-
-        
-        abb_url = urljoin(config.URL['abb'], 'results/')
-        bds_url = urljoin(config.URL['bds'], 'manage/')
-        
-        context = {
-            'abb_url': abb_url,
-            'bds_url': bds_url,
-            'elections': Election.objects.all(),
-        }
-
-        return render(request, self.template_name, context)
 

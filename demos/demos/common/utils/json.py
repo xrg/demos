@@ -1,9 +1,5 @@
 # File: json.py
 
-from __future__ import division
-
-import json
-
 from base64 import b64encode
 from google.protobuf import message
 from django.core.serializers.json import DjangoJSONEncoder
@@ -20,3 +16,5 @@ class CustomJSONEncoder(DjangoJSONEncoder):
             return r
         
         return super(CustomJSONEncoder, self).default(o)
+
+#eof

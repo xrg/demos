@@ -2,8 +2,9 @@
 
 from django.db import models
 from django.core import urlresolvers
+from django.contrib.auth.models import User
 
-from demos.common.utils import crypto, enums, fields, storage
+from demos.common.utils import crypto, enums, fields
 from demos.common.utils.config import registry
 
 config = registry.get_config('ea')
@@ -19,11 +20,13 @@ class Election(models.Model):
     end_datetime = models.DateTimeField()
     
     state = fields.IntEnumField(cls=enums.State)
-    
-    long_votecodes = models.BooleanField()
-    parties_and_candidates = models.BooleanField(default=False)
-    
+
+    type = fields.IntEnumField(cls=enums.Type)
+    vc_type = fields.IntEnumField(cls=enums.VcType)
+
     ballots = models.PositiveIntegerField()
+    
+    user = models.ForeignKey(User)
     
     # Other model methods and meta options
     
@@ -104,6 +107,8 @@ class Question(models.Model):
     
     text = models.CharField(max_length=config.QUESTION_MAXLEN)
     index = models.PositiveSmallIntegerField()
+
+    options = models.PositiveSmallIntegerField()
     
     # Other model methods and meta options
     

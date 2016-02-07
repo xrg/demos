@@ -15,34 +15,50 @@
 
 <div class="row">
     <div class="col-xs-12">
-        
+
         <div class="page-header text-center">
             <h2>{% trans "Election Center" %}</h2>
         </div>
 
+        <ul style="margin-bottom: 30px">
+            <li>{% trans "User name:" %} {{ request.user.get_username }}</li>
+            <li>{% trans "Full name:" %} {{ request.user.get_full_name }}</li>
+            <li>{% trans "E-mail:" %} {{ request.user.email }}</li>
+        </ul>
+
         {% for election in elections %}
-            
-            <div class="alert alert-warning" role="alert">
-                
+
+            <div class="alert alert-info" role="alert">
+
                 <h4><strong>{{ election.title }}</strong></h4>
-                
+
                 <ul class="list-unstyled">
-                    
-                    <li>{% trans "ID" %}:&nbsp&nbsp<strong><span>{{ election.id }}</span></strong></li>
-                    <li>{% trans "Start at" %}:&nbsp&nbsp<strong><span class="datetime-iso8601" data-format="dddd D MMMM YYYY, hh:mm a">{{ election.start_datetime|date:"c" }}</span></strong></li>
-                    <li>{% trans "End at" %}:&nbsp&nbsp<strong><span class="datetime-iso8601" data-format="dddd D MMMM YYYY, hh:mm a">{{ election.end_datetime|date:"c" }}</span></strong></li>
-                    <li>{% trans "Ballot management" %}:&nbsp&nbsp<a class="alert-link" href="{{ bds_url }}{{ election.id }}/">{{ bds_url }}{{ election.id }}/</a></li>
-                    <li>{% trans "Election results" %}:&nbsp&nbsp<a class="alert-link" href="{{ abb_url }}{{ election.id }}/">{{ abb_url }}{{ election.id }}/</a></li>
-                    
+
+                    <li>{% trans "Election ID:" %}&nbsp;&nbsp;<strong><span>{{ election.id }}</span></strong></li>
+                    <li>{% trans "Start at:" %}&nbsp;&nbsp;<strong><span class="datetime-iso8601" data-format="dddd D MMMM YYYY, hh:mm a">{{ election.start_datetime|date:"c" }}</span></strong></li>
+                    <li>{% trans "End at:" %}&nbsp;&nbsp;<strong><span class="datetime-iso8601" data-format="dddd D MMMM YYYY, hh:mm a">{{ election.end_datetime|date:"c" }}</span></strong></li>
+                    <li style="height:5px"></li>
+                    <li>{% trans "Election status:" %}:&nbsp;&nbsp;<a class="alert-link" href="{% url 'ea:status' election_id=election.id %}">{{ request.META.HTTP_HOST }}{% url 'ea:status' election_id=election.id %}</a></li>
+                    <li>{% trans "Ballot management:" %}:&nbsp;&nbsp;<a class="alert-link" href="{{ bds_url }}{{ election.id }}/">{{ bds_url }}{{ election.id }}/</a></li>
+                    <li>{% trans "Election results:" %}:&nbsp;&nbsp;<a class="alert-link" href="{{ abb_url }}{{ election.id }}/">{{ abb_url }}{{ election.id }}/</a></li>
+
                 </ul>
-                
+
             </div>
-            
+
         {% endfor %}
+
+        {% if not elections %}
+
+        <div class="alert alert-warning" role="alert">
+            <h5>{% trans "No elections available" %}</h5>
+        </div>
+
+        {% endif %}
 
     </div>
 </div>
-      
+
 {% endblock main %}
 
 

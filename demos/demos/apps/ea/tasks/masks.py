@@ -8,16 +8,15 @@ _masks = {
     
     'bds' : {
         'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
-            'long_votecodes', 'state', 'parties_and_candidates'],
-        'Trustee': ['email'],
+            'state', 'type', 'vc_type', 'ballots', 'user'],
         'Ballot': ['serial'],
         'Part': ['index', 'security_code', 'vote_token'],
      },
     
     'abb' : {
         'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
-            'long_votecodes', 'state', 'ballots', 'cert', 'parties_and_candidates'],
-        'Question': ['text', 'key', 'index', 'choices'],
+            'state', 'type', 'vc_type', 'ballots', 'cert'],
+        'Question': ['text', 'key', 'index', 'options', 'choices'],
         'OptionC': ['text', 'index'],
         'Ballot': ['serial', 'credential_hash'],
         'Part': ['index', 'security_code_hash2', 'l_votecode_salt', \
@@ -28,8 +27,8 @@ _masks = {
     
     'vbb' : {
         'Election': ['id', 'title', 'start_datetime', 'end_datetime', \
-            'long_votecodes', 'state', 'ballots', 'parties_and_candidates'],
-        'Question': ['text', 'index', 'columns', 'choices'],
+            'state', 'type', 'vc_type', 'ballots'],
+        'Question': ['text', 'index', 'options', 'columns', 'choices'],
         'OptionC': ['text', 'index'],
         'Ballot': ['serial', 'credential_hash'],
         'Part': ['index', 'security_code_hash2', 'l_votecode_salt', \
@@ -41,6 +40,7 @@ _masks = {
 
 
 _mask_list_re = re.compile('^__list_(.+)__$')
+
 def _apply_mask(obj, app_mask, model_mask):
     
     result = {}

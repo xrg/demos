@@ -5,7 +5,6 @@ from __future__ import division
 import io
 import os
 import hmac
-import json
 import math
 import time
 import random
@@ -13,7 +12,6 @@ import hashlib
 import tarfile
 import logging
 
-from base64 import b64encode
 from OpenSSL import crypto
 from functools import partial
 
@@ -27,18 +25,17 @@ from multiprocessing.pool import ThreadPool
 
 from django.apps import apps
 from django.utils import translation
-from django.core.files import File
 from django.utils.encoding import force_bytes
 
 from celery import shared_task, current_task
-from celery.signals import worker_process_init, task_failure
+from celery.signals import task_failure
 
 from demos.apps.ea.tasks import cryptotools, pdf
 from demos.apps.ea.tasks.masks import apply_mask
-from demos.apps.ea.models import Election, Task
+from demos.apps.ea.models import Election # , Task
 
-from demos.common.utils import api, base32cf, dbsetup, enums, hashers, intc
-from demos.common.utils.json import CustomJSONEncoder
+from demos.common.utils import api, base32cf, enums, hashers, intc
+from demos.common.utils.setup import insert_into_db
 from demos.common.utils.config import registry
 from demos.common.utils.permutation import permute
 
@@ -58,7 +55,7 @@ def election_setup(election_obj, language):
     election.state = enums.State.WORKING
     election.save(update_fields=['state'])
     
-    election_obj['state'] = enums.State.WORKING
+    election_obj['state'] = election.state
     
     # Election-specific vote-token bit lengths
     
@@ -81,7 +78,7 @@ def election_setup(election_obj, language):
     
     # Establish sessions with the other servers
     
-    api_session = {app_name: api.Session(app_name, app_config)
+    api_session = {app_name: api.ApiSession(app_name, app_config)
         for app_name in ['abb', 'vbb', 'bds']}
     
     # Load CA's X.509 certificate and private key
@@ -120,46 +117,44 @@ def election_setup(election_obj, language):
     if ca_pkey:
         cert.sign(ca_pkey, 'sha256')
     
-    election_obj['cert'] = \
-        crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode()
+    certbuf = io.BytesIO(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
     
-    # Generate question keys and calculate max_options
-    
-    max_options = 0
+    # Generate question keys
     
     for question_obj in election_obj['__list_Question__']:
-        
-        options = len(question_obj['__list_OptionC__'])
-        
-        if options > max_options:
-            max_options = options
-            
-        question_obj['key'] = cryptotools.gen_key(election.ballots, options)
+        question_obj['key'] = cryptotools.gen_key(config.CURVE)
+    
+    # Find the maximum number of options
+    
+    max_options = max([q_obj['options'] \
+        for q_obj in election_obj['__list_Question__']])
     
     # Populate local and remote databases
     
-    dbsetup.election(election, election_obj, app_config)
-    
-    data = {
-        'task': 'election',
-        'payload': election_obj,
+    files = {
+        'abb': [
+            ('cert.pem', certbuf)
+        ]
     }
     
-    api_setup1 = partial(api_setup, data=data,
-        api_session=api_session, url_path='manage/setup/')
+    insert_into_db(election_obj, app_config)
     
-    thread_pool.map(api_setup1, ['abb', 'vbb', 'bds'])
+    _remote_app_setup_f = partial(_remote_app_setup, data=election_obj,
+        files=files, api_session=api_session, url_path='api/setup/p1/')
+    
+    async_result1 = \
+        thread_pool.map_async(_remote_app_setup_f, ['abb', 'vbb', 'bds'])
     
     # Generate ballots in groups of BATCH_SIZE
     
     progress = {'current': 0, 'total': election.ballots * 2}
     current_task.update_state(state='PROGRESS', meta=progress)
     
-    q_list = [(question_obj['key'], len(question_obj['__list_OptionC__'])) \
+    q_list = [(question_obj['key'], len(question_obj['__list_OptionC__']), 0) \
         for question_obj in election_obj['__list_Question__']]
     
-    async_result = thread_pool.apply_async(crypto_gen, \
-        (election.ballots, q_list, min(config.BATCH_SIZE, election.ballots)))
+    async_result2 = thread_pool.apply_async(_gen_ballot_crypto, \
+        (q_list, min(config.BATCH_SIZE, election.ballots)))
     
     for lo in range(100, election.ballots + 100, config.BATCH_SIZE):
         
@@ -167,11 +162,11 @@ def election_setup(election_obj, language):
         
         # Get current batch's crypto elements and generate the next one's
         
-        crypto_bsqo_list = async_result.get()
+        crypto_bsqo_list, _ = async_result2.get()
         
         if hi - 100 < election.ballots:
-            async_result=thread_pool.apply_async(crypto_gen, (election.ballots,\
-                q_list, min(config.BATCH_SIZE, election.ballots + 100 - hi)))
+            async_result2 = thread_pool.apply_async(_gen_ballot_crypto, \
+                (q_list, min(config.BATCH_SIZE, election.ballots + 100 - hi)))
         
         # Generate the rest data for all ballots and parts and store them in
         # lists of dictionaries. They will be used to populate the databases.
@@ -207,12 +202,12 @@ def election_setup(election_obj, language):
                 
                 # Prepare long votecodes' key, salt and iterations (if enabled)
                 
-                if not election.long_votecodes:
+                if election.vc_type == enums.VcType.SHORT:
                     
                     l_votecode_salt = ''
                     l_votecode_iterations = None
                     
-                else:
+                elif election.vc_type == enums.VcType.LONG:
                     
                     key = base32cf.decode(security_code)
                     bytes = int(math.ceil(key.bit_length() / 8))
@@ -237,6 +232,7 @@ def election_setup(election_obj, language):
                     # Each ballot part's votecodes are grouped by question
                     
                     question_obj = {
+                        'index': q_index,
                         '__list_OptionV__': [],
                     }
                     
@@ -258,14 +254,14 @@ def election_setup(election_obj, language):
                         
                         # Prepare long votecodes (if enabled) and receipt data
                         
-                        if not election.long_votecodes:
+                        if election.vc_type == enums.VcType.SHORT:
                             
                             l_votecode = ''
                             l_votecode_hash = ''
                             
                             receipt_data = optionv_id
                             
-                        else:
+                        elif election.vc_type == enums.VcType.LONG:
                             
                             # Each long votecode is constructed as follows:
                             # hmac(security_code, credential + (question_index
@@ -373,8 +369,8 @@ def election_setup(election_obj, language):
         tarbuf = io.BytesIO()
         tar = tarfile.open(fileobj=tarbuf, mode='w:gz')
         
-        ballot_gen1 = partial(ballot_gen, builder=builder)
-        pdf_list = process_pool.map(ballot_gen1, ballot_list)
+        _gen_ballot_pdf_f = partial(_gen_ballot_pdf, builder=builder)
+        pdf_list = process_pool.map(_gen_ballot_pdf_f, ballot_list)
         
         for serial, pdfbuf in pdf_list:
             
@@ -393,6 +389,7 @@ def election_setup(election_obj, language):
             current_task.update_state(state='PROGRESS', meta=progress)
         
         tar.close()
+        tarbuf.seek(0)
         
         # Get optionvs' permutations from the corresponding security codes
         
@@ -426,26 +423,28 @@ def election_setup(election_obj, language):
         
         # Populate local and remote databases
         
-        election_obj_t = {
-            'id': election_obj['id'],
+        data = {
+            'id': election.id,
             '__list_Ballot__': ballot_list,
         }
         
-        dbsetup.ballot(election_obj_t, app_config)
-        
-        data = {
-            'task': 'ballot',
-            'payload': election_obj_t,
-        }
-        
         files = {
-            'ballots.tar.gz': tarbuf.getvalue()
+            'bds': [
+                ('ballots.tar.gz', tarbuf)
+            ]
         }
         
-        api_setup1 = partial(api_setup, data=data, files=files,
-            api_session=api_session, url_path='manage/setup/')
+        insert_into_db(data, app_config)
         
-        thread_pool.map(api_setup1, ['abb', 'vbb', 'bds'])
+        _remote_app_setup_f = partial(_remote_app_setup, data=data,
+            files=files, api_session=api_session, url_path='api/setup/p2/')
+        
+        async_result1.wait()
+        
+        async_result1 = \
+            thread_pool.map_async(_remote_app_setup_f, ['abb', 'vbb', 'bds'])
+    
+    async_result1.wait()
     
     # Update election state to RUNNING
     
@@ -458,14 +457,14 @@ def election_setup(election_obj, language):
             'e_id': election_obj['id']
         },
         'fields': {
-            'state': enums.State.RUNNING
+            'state': election.state
         },
     }
     
-    api_update1 = partial(api_update, data=data,
-        api_session=api_session, url_path='manage/update/')
+    _remote_app_update_f = partial(_remote_app_update, data=data,
+        api_session=api_session, url_path='api/update/')
     
-    thread_pool.map(api_update1, ['abb', 'vbb', 'bds'])
+    thread_pool.map(_remote_app_update_f, ['abb', 'vbb', 'bds'])
     
     # Delete celery task
     # task = Task.objects.get(election=election)
@@ -480,7 +479,7 @@ def election_setup_failure_handler(*args, **kwargs):
     pass # TODO: database cleanup
 
 
-def api_setup(app_name, **kwargs):
+def _remote_app_setup(app_name, **kwargs):
     
     # This function is used in a seperate thread.
     
@@ -489,20 +488,13 @@ def api_setup(app_name, **kwargs):
     
     app_session = api_session[app_name]
     
-    data = kwargs['data'].copy()
-    files = kwargs.get('files')
+    data = apply_mask(app_name, kwargs.get('data', {}))
+    files = kwargs.get('files', {}).get(app_name)
     
-    payload = apply_mask(app_name, data['payload'])
-    data['payload'] = json.dumps(payload, \
-        separators=(',', ':'), cls=CustomJSONEncoder)
-    
-    if app_name != 'bds':
-        files = None
-    
-    app_session.post(url_path, data, files)
+    app_session.post(url_path, data, files, json=True)
 
 
-def api_update(app_name, **kwargs):
+def _remote_app_update(app_name, **kwargs):
     
     # This function is used in a seperate thread.
     
@@ -510,29 +502,34 @@ def api_update(app_name, **kwargs):
     api_session = kwargs['api_session']
     
     app_session = api_session[app_name]
-    
-    data = kwargs['data'].copy()
-    json_data = json.dumps(data, separators=(',', ':'), cls=CustomJSONEncoder)
-    
-    data = { 'data': json_data }
-    app_session.post(url_path, data)
+    app_session.post(url_path, kwargs['data'], json=True)
 
 
-def crypto_gen(ballots, q_list, number):
+def _gen_ballot_crypto(q_list, number):
     
     # This function is used in a seperate thread.
     
-    # Generates crypto elements and converts the returned list of questions of
-    # ballots of parts of crypto elements to a list of ballots of parts of
-    # questions of crypto elements!
+    # Generate ballots' crypto elements and convert the returned list of
+    # questions of ballots of parts of crypto elements to a list of ballots
+    # of parts of questions of crypto elements
     
-    crypto_list = [cryptotools.gen_ballot(key, ballots, options, number) \
-        for key, options in q_list]
+    opt_list = []
+    blk_list = []
     
-    return zip(*[iter([j for i in zip(*crypto_list) for j in zip(*i)])] * 2)
+    for key, options, blanks in q_list:
+        
+        opts, blks = cryptotools.gen_ballot(key, options, blanks, number)
+        
+        opt_list.append(opts)
+        blk_list.append(blks)
+    
+    opt_list = zip(*[iter([j for i in zip(*opt_list) for j in zip(*i)])] * 2)
+    blk_list = zip(*[iter([j for i in zip(*blk_list) for j in zip(*i)])] * 2)
+    
+    return (opt_list, blk_list)
 
 
-def ballot_gen(ballot_obj, builder):
+def _gen_ballot_pdf(ballot_obj, builder):
     
     # This function is used in a seperate process.
     

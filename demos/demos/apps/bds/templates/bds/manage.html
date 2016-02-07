@@ -6,6 +6,7 @@
 
 {% block css %}
 
+<link rel="stylesheet" href="{% static 'common/libs/bootstrap-slider/5.2.6/css/bootstrap-slider.min.css' %}">
 <link rel="stylesheet" href="{% static 'bds/manage.css' %}">
 
 {% endblock css %}
@@ -13,12 +14,110 @@
 
 {% block main %}
 
+<div class="row">
+    <div class="col-xs-12">     
+        
+        {% tuple _("Election ID") election.id as t1 %}
+        {% tuple _("Total Ballots") election.ballots as t2 %}
+        {% tuple _("Available Ballots") available_ballots as t3 %}
+        {% tuple t1 t2 t3 as panels %}
+        {% include "common/election_box.html" with object=election panels=panels %}
+        
+        {% if started %}
+            
+            <div class="alert alert-warning" role="alert">
+                <h5>{% trans "Election has already started." %}</h5>
+            </div>
+            
+        {% else %}
+           
+        <div class="page-header">
+            <h3>{% trans "Download Ballots" %}</h3>
+        </div>
+        
+        {% if download_error %}
+            
+            <div class="alert alert-danger alert-dismissible fade in" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="{% trans 'Close' %}">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h5>{% trans "Not enough ballots." %}</h5>
+            </div>
+            
+        {% endif %}
+        
+        <form class="form-horizontal" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="inputEmail3" class="col-sm-3 control-label">{{ download_form.ballots.label }}</label>
+                <div class="col-sm-9">
+                    {% if available_ballots == '0' %}
+                    <input type="text" class="form-control input-type-number" id="{{ download_form.ballots.auto_id }}" name="{{ download_form.ballots.html_name }}" data-slider-min="0" data-slider-max="0" data-slider-step="1" data-slider-value="0">
+                    {% else %}
+                    <input type="text" class="form-control input-type-number" id="{{ download_form.ballots.auto_id }}" name="{{ download_form.ballots.html_name }}" data-slider-min="{{ download_form.ballots.field.min_value }}" data-slider-max="{{ available_ballots }}" data-slider-step="1" data-slider-value="1">
+                    {% endif %}
+                    <!--span id="ex6CurrentSliderValLabel">Current Slider Value: <span id="ex6SliderVal">1</span></span-->
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="inputPassword3" class="col-sm-3 control-label">{{ download_form.archive_fmt.label }}</label>
+                <div class="col-sm-9">
+                    {% for radio in download_form.archive_fmt %}
+                    <label class="radio-inline">
+                        {{ radio }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-sm-offset-10 col-sm-2">
+                    <button id="download" type="submit" class="btn btn-default pull-right">{% trans "Download" %}</button>
+                </div>
+            </div>
+        </form>
+        
+        <div class="page-header">
+            <h3>{% trans "Send e-mails" %}</h3>
+        </div>
+        
+        {% if email_error %}
+            
+            <div class="alert alert-danger alert-dismissible fade in" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="{% trans 'Close' %}">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h5>{% trans "Invalid e-mail(s)." %}</h5>
+            </div>
+            
+        {% endif %}
+        
+        <form class="form-horizontal" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <div class="col-sm-12">
+                    <textarea type="text" class="form-control" id="{{ email_form.voter_list.auto_id }}" placeholder="{% trans 'e.g.' %}: alice@demos-voting.org, bob@demos-voting.org" value="{{ email_form.voter_list.value|default_if_none:'' }}" name="{{ email_form.voter_list.html_name }}" maxlength="{{ email_form.voter_list.field.max_length }}" rows=3></textarea>
+                </div>
+            </div>
+            {{ email_form.csvfile }}
+            <div class="form-group">
+                <div class="col-sm-offset-10 col-sm-2">
+                    <button id="send" type="submit" class="btn btn-default pull-right">{% trans "Send" %}</button>
+                </div>
+            </div>
+        </form>
+            
+        {% endif %}
+    </div>
+</div>
+
+
 
 {% endblock main %}
 
 
 {% block script %}
 
+<script src="{% static 'common/libs/bootstrap-slider/5.2.6/bootstrap-slider.min.js' %}"></script>
 <script src="{% static 'bds/manage.js' %}"></script>
 
 {% endblock script %}

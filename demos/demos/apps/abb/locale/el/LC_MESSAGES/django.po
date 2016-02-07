@@ -24,7 +24,7 @@ msgstr "Επαλήθευση και Αποτελέσματα"
 #: demos/apps/abb/templates/abb/audit.html:20
 #: demos/apps/abb/templates/abb/results.html:20
 msgid "Election"
-msgstr "Ψηφοφορία"
+msgstr ""
 
 #: demos/apps/abb/templates/abb/audit.html:21
 #: demos/apps/abb/templates/abb/results.html:21
@@ -37,7 +37,7 @@ msgstr "Εξαγωγή Δεδομένων"
 
 #: demos/apps/abb/templates/abb/audit.html:32
 msgid "Export ballots"
-msgstr "Εξαγωγή ψηφοδελτίων "
+msgstr ""
 
 #: demos/apps/abb/templates/abb/audit.html:33
 msgid "Export certificate"
@@ -129,3 +129,16 @@ msgstr "Τα αποτελέσματα θα ανακοινωθούν μετά τ�
 #: demos/apps/abb/templates/abb/home.html:14
 msgid "Welcome to the DEMOS e-voting system"
 msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"
+
+#: demos/apps/abb/templates/abb/audit.html:20
+#: demos/apps/abb/templates/abb/results.html:20
+#, fuzzy
+#| msgid "Election"
+msgid "Election ID"
+msgstr "Ψηφοφορία"
+
+#: demos/apps/abb/templates/abb/audit.html:32
+#, fuzzy
+#| msgid "Export ballots"
+msgid "Export ballot data"
+msgstr "Εξαγωγή ψηφοδελτίων "

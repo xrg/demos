@@ -38,6 +38,9 @@ class IntEnumC:
 
         return ret
 
+
+# Enum definitions -------------------------------------------------------------
+
 class State(IntEnumC):
 
     DRAFT = 1
@@ -48,5 +51,15 @@ class State(IntEnumC):
     PAUSED = 6
     ERROR = 7
     TEMPLATE = 8
+
+class Type(IntEnumC):
+
+    ELECTIONS = 1
+    REFERENDUM = 2
+
+class VcType(IntEnumC):
+    
+    SHORT = 1
+    LONG = 2
 
 #eof

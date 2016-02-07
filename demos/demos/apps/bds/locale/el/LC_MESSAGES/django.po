@@ -32,3 +32,64 @@ msgstr "Διαχείριση Ψηφοδελτίων"
 #: demos/apps/bds/templates/bds/home.html:14
 msgid "Welcome to the DEMOS e-voting system"
 msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"
+
+#: demos/apps/bds/forms.py:16
+msgid "Voter e-mails"
+msgstr "E-mail ψηφοφόρων"
+
+#: demos/apps/bds/forms.py:19
+msgid "E-mail csv file"
+msgstr ""
+
+#: demos/apps/bds/forms.py:24
+msgid "Ballots"
+msgstr "Ψηφοδέλτια"
+
+#: demos/apps/bds/forms.py:27
+msgid "Archive format"
+msgstr "Τύπος αρχειοθήκης"
+
+#: demos/apps/bds/templates/bds/manage.html:20
+msgid "Election ID"
+msgstr "Αναγνωριστικό Ψηφοφορίας"
+
+#: demos/apps/bds/templates/bds/manage.html:21
+msgid "Total Ballots"
+msgstr "Συνολικά Ψηφοδέλτια"
+
+#: demos/apps/bds/templates/bds/manage.html:22
+msgid "Available Ballots"
+msgstr "Διαθέσιμα Ψηφοδέλτια"
+
+#: demos/apps/bds/templates/bds/manage.html:41
+msgid "Download Ballots"
+msgstr "Λήψη Ψηφοδελτίων"
+
+#: demos/apps/bds/templates/bds/manage.html:47
+#: demos/apps/bds/templates/bds/manage.html:92
+msgid "Close"
+msgstr "Κλείσιμο"
+
+#: demos/apps/bds/templates/bds/manage.html:50
+msgid "Not enough ballots."
+msgstr ""
+
+#: demos/apps/bds/templates/bds/manage.html:80
+msgid "Download"
+msgstr "Λήψη"
+
+#: demos/apps/bds/templates/bds/manage.html:86
+msgid "Send e-mails"
+msgstr "Αποστολή e-mail"
+
+#: demos/apps/bds/templates/bds/manage.html:95
+msgid "Invalid e-mail(s)."
+msgstr "Μη έγκυρες διευθύνσεις e-mail"
+
+#: demos/apps/bds/templates/bds/manage.html:104
+msgid "e.g."
+msgstr "π.χ."
+
+#: demos/apps/bds/templates/bds/manage.html:110
+msgid "Send"
+msgstr "Αποστολή"

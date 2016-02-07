@@ -19,7 +19,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = NO_SECRET_KEY_DEFINED
+# SECRET_KEY = 'NO_SECRET_KEY_DEFINED'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -67,6 +67,12 @@ MIDDLEWARE_CLASSES = [
 
 ROOT_URLCONF = 'demos.urls'
 
+WSGI_APPLICATION = 'demos.wsgi.application'
+
+
+# Templates
+# https://docs.djangoproject.com/en/1.8/ref/settings/#templates
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -95,8 +101,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'demos.wsgi.application'
-
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
@@ -104,17 +108,18 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'demos_voting',
-        'USER': 'demos_voting',
-        #'PASSWORD': '',
+        #'USER': '',
         #'HOST': '',
-        #'PORT': '',
+        #'PORT': '5432',
+        #'PASSWORD': '',
     }
 }
 
 BROKER_URL = 'amqp://'
 CELERY_RESULT_BACKEND = 'amqp'
-# CELERY_TASK_SERIALIZER = 'json'
-# CELERY_ACCEPT_CONTENT = ['json', 'msgpack']
+CELERY_TASK_SERIALIZER = 'custom-json'
+CELERY_RESULT_SERIALIZER = 'custom-json'
+CELERY_ACCEPT_CONTENT = ['custom-json', 'json', 'msgpack']
 
 if DEVELOPMENT:
     # Alternative config, only using Django + existing db
@@ -138,7 +143,7 @@ LANGUAGES = [
 LANGUAGE_CODE = 'en-us'
 
 USE_TZ = True
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Athens'
 
 USE_I18N = True
 USE_L10N = True
@@ -191,7 +196,7 @@ LOGGING = {
     },
     'loggers': {
         'root': {
-            'handlers': ['syslog',]
+            'handlers': ['syslog']
             },
         'django': {
             'handlers': ['mail_admins', 'syslog'],
@@ -221,7 +226,7 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 
 
-# Demos-specific configuration
+# Demos-Voting configuration
 
 DEMOS_CONFIG = {
 
@@ -238,7 +243,7 @@ DEMOS_CONFIG = {
         # CRYPTO_AF: e.g. 'AF_UNIX' or 'AF_INET' or 'AF_INET6'
         # CRYPTO_ADDR: e.g. '/tmp/demos-crypto.sock' or ('127.0.0.1', 8999)
         'CRYPTO_AF': 'AF_UNIX',
-        'CRYPTO_ADDR': '/run/demos-voting/demos-crypto.sock',
+        'CRYPTO_ADDR': '/tmp/demos-crypto.sock',
 
         # Performance settings, they affect CPU and RAM usage, etc
 
@@ -254,18 +259,15 @@ DEMOS_CONFIG = {
 
     },
     'bds': {
-
         # Absolute path to the directory that will hold machine-local files
         'FILESYSTEM_ROOT': os.path.join(SPOOL_DIR, 'bds'),
     },
 
     'abb': {
-        
         # Performance settings, they affect CPU and RAM usage, etc
         'BATCH_SIZE': 128,
         
         # Absolute path to the directory that will hold machine-local files
-        
         'FILESYSTEM_ROOT': os.path.join(SPOOL_DIR, 'abb'),
     },
 
@@ -273,21 +275,15 @@ DEMOS_CONFIG = {
     },
 }
 
-DEMOS_APPS = NO_APP_CHOSEN   # one or more of: ea, bds, abb, vbb
+DEMOS_APPS = ('ea', 'bds', 'abb', 'vbb')
 
-DEMOS_URL = {
-    'ea': 'https://demos-ea.our-domain.com',
-    'bds': 'https://demos-bds.our-domain.com',
-    'abb': 'https://demos-abb.our-domain.com',
-    'vbb': 'https://demos-vbb.our-domain.com',
-}
+DEMOS_URL = { 'ea': 'http://demos-voting.example.com/ea/',
+             'bds': 'http://demos-voting.example.com/bds/',
+             'abb': 'http://demos-voting.example.com/abb/',
+             'vbb': 'http://demos-voting.example.com/vbb/',
+            }
 
-DEMOS_API_URL = {
-    'ea': 'https://api.demos-ea.our-domain.com',
-    'bds': 'https://api.demos-bds.our-domain.com',
-    'abb': 'https://api.demos-abb.our-domain.com',
-    'vbb': 'https://api.demos-vbb.our-domain.com',
-}
+DEMOS_API_URL = DEMOS_URL
 
 # In case the API URLs are SSL-enabled and use self-signed certificates,
 # their verification can be disabled to allow requests among servers
@@ -304,7 +300,7 @@ if False:
     INSTALLED_APPS.append('django_cas')
     MIDDLEWARE_CLASSES.append('django_cas.middleware.CASMiddleware')
     LOGIN_URL = 'cas_login'
-    CAS_SERVER_URL = 'https://login-devel.uoa.gr/'
+    CAS_SERVER_URL = 'https://cas.example.gr/'
     CAS_SERVER_SSL_VERIFY = False
     CAS_RETRY_LOGIN = False
     # CAS_LOGOUT_COMPLETELY = True
@@ -332,7 +328,7 @@ if DEVELOPMENT:
         'disable_existing_loggers': False,
         'handlers': {
             'console': {
-                'level': 'DEBUG',
+                #'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
             },
         },

@@ -18,9 +18,16 @@
 <div class="row">
     <div class="col-xs-12">
         
-        {% tuple _("Election") election.id as t1 %}
-        {% tuple _("Ballots") election.ballots as t2 %}
-        {% tuple t1 t2 as panels %}
+        {% tuple _("Election ID") election.id as t1 %}
+        {% tuple _("Ballots") election.ballots as t3 %}
+        
+        {% if election.type == Type.ELECTIONS %}
+            {% tuple _("Type") _("Elections") as t2 %}
+        {% else %}
+            {% tuple _("Type") _("Referendum") as t2 %}
+        {% endif %}
+        
+        {% tuple t1 t2 t3 as panels %}
         {% include "common/election_box.html" with object=election panels=panels %}
         
         <div id="main-wrapper">
@@ -69,11 +76,12 @@
                     <span class="glyphicon pull-right hidden"></span>
                 </a>
             </div>
-            
+            {% if election.state == State.RUNNING %}
             <div class="main-header-small">
                 <h5>{% trans "Ballot management" %}:</h5>
             </div>
             <pre><a target="_blank" href="{{ bds_url }}">{{ bds_url }}</a></pre>
+            {% endif %}
             
             <div class="main-header-small">
                 <h5>{% trans "Election results" %}:</h5>
