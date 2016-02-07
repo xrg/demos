@@ -465,7 +465,7 @@
 <script>
     (function($) {
         $(function() {
-            if ($("#start-datetimepicker > .input-group-addon").css("cursor") != "pointer") {
+            if ($(".date:eq(0) > .input-group-addon").css("cursor") != "pointer") {
                 $("head").prepend('<link rel="stylesheet" href="{% static "common/libs/bootstrap-datetimepicker/4.17.37/css/bootstrap-datetimepicker.min.css" %}">');
             }
         });
@@ -474,7 +474,7 @@
 
 <!-- bootstrap-datetimepicker.js -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/js/bootstrap-datetimepicker.min.js"></script>
-<script> $("#start-datetimepicker").datetimepicker || document.write("<script src='{{ moment_locale_static }}'><\/script>") </script>
+<script> $(".date:eq(0)").datetimepicker || document.write("<script src='{% static "common/libs/bootstrap-datetimepicker/4.17.37/js/bootstrap-datetimepicker.min.js" %}'><\/script>") </script>
 
 <!-- jquery-ui-custom.js -->
 <script src="{% static 'common/libs/jquery-ui/1.11.4/jquery-ui.min.js' %}"></script>
