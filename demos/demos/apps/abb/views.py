@@ -280,12 +280,9 @@ class ApiVoteView(View):
                     
                     vc_name = 'votecode'
                     
-                    vc_list = []
-                    if not election.parties_and_candidates or \
-                        str(question.index) in p1_votecodes:
-                        vc_list = p1_votecodes[str(question.index)]
-                    
-                    if not election.parties_and_candidates and len(vc_list) < 1:
+                    vc_list = p1_votecodes[str(question.index)]
+
+                    if len(vc_list) < 1:
                         raise Exception('Not enough votecodes')
                     
                     if len(vc_list) > question.choices:
