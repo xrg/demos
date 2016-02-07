@@ -440,13 +440,13 @@ class ApiCryptoView(View):
                 com_list=self._deserialize(request_obj['com_list'], crypto.Com)
                 
                 # Add 'com' fields
-                
+                com = None
                 for lo in range(0, len(com_list), config.BATCH_SIZE):
                     hi = lo + min(config.BATCH_SIZE, len(com_list) - lo)
                     
                     com_buf = com_list[lo: hi]
                     
-                    if lo > 0:
+                    if com is not None:
                         com_buf.append(com)
                     
                     com = cryptotools.add_com(key, com_buf)
@@ -550,7 +550,7 @@ class ApiCryptoView(View):
                 lo = hi = 0
                 response = []
                 
-                for _, _, o_iz_list in ballots:
+                for x_, y_, o_iz_list in ballots:
                     
                     lo = hi
                     hi = lo + len(o_iz_list)
