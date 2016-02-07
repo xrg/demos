@@ -60,16 +60,7 @@ class ElectionForm(forms.Form):
     
     choices = forms.IntegerField(label=_('Choices'),
         initial=1, min_value=1, max_value=config.MAX_OPTIONS, required=False)
-    
-    voting_type = forms.ChoiceField(label=_('Voting type'), \
-        choices=(('elections', _('Elections')),('referendum', _('Referendum'))))
-    
-    voting_system = forms.ChoiceField(label=_('Voting system'), \
-        choices=(('pr', _('Proportional representation')),))
-    
-    choices = forms.IntegerField(label=_('Multiple choices'),
-        initial=1, min_value=1, max_value=config.MAX_OPTIONS, required=False)
-    
+
     error_msg = {
         'passed': _("The date and time you selected have passed."),
         'order': _("Start and end dates and times are not in logical order.")
