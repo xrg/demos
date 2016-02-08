@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/1.8/topics/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # Quick-start development settings - unsuitable for production
@@ -295,11 +295,12 @@ DEMOS_API_URL = DEMOS_URL
 INSTALLED_APPS += [ 'demos.apps.%s' % iapp for iapp in DEMOS_APPS ]
 LOCALE_PATHS += tuple([ os.path.join(BASE_DIR, 'apps/%s/locale' % iapp) for iapp in DEMOS_APPS])
 
+LOGIN_URL = 'auth:login'
+
 if False:
     # use CAS for authentication
     INSTALLED_APPS.append('django_cas')
     MIDDLEWARE_CLASSES.append('django_cas.middleware.CASMiddleware')
-    LOGIN_URL = 'cas_login'
     CAS_SERVER_URL = 'https://cas.example.gr/'
     CAS_SERVER_SSL_VERIFY = False
     CAS_RETRY_LOGIN = False
@@ -311,8 +312,6 @@ if False:
         'django.contrib.auth.backends.ModelBackend',
         'django_cas.backends.CASBackend',
         )
-else:
-    LOGIN_URL = 'login'
 
 
 # End of demos-specific configuration
