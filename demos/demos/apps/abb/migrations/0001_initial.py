@@ -45,8 +45,7 @@ class Migration(migrations.Migration):
                 ('start_datetime', models.DateTimeField()),
                 ('end_datetime', models.DateTimeField()),
                 ('state', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.State, choices=[(1, b'draft'), (2, b'pending'), (3, b'working'), (4, b'running'), (5, b'completed'), (6, b'paused'), (7, b'error'), (8, b'template')])),
-                ('type', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.Type, choices=[(1, b'elections'), (2, b'referendum')])),
-                ('vc_type', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.VcType, choices=[(1, b'short'), (2, b'long')])),
+
                 ('ballots', models.PositiveIntegerField()),
                 ('cert', models.FileField(storage=demos.common.utils.storage.PrivateFileSystemStorage(file_permissions_mode=384, directory_permissions_mode=448, location=b'/home/marios/demos/devel/data/abb'), upload_to=demos.apps.abb.models.get_cert_file_path)),
                 ('export_file', models.FileField(storage=demos.common.utils.storage.PrivateFileSystemStorage(file_permissions_mode=384, directory_permissions_mode=448, location=b'/home/marios/demos/devel/data/abb'), upload_to=demos.apps.abb.models.get_export_file_path, blank=True)),

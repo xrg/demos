@@ -41,9 +41,8 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=128)),
                 ('start_datetime', models.DateTimeField()),
                 ('end_datetime', models.DateTimeField()),
+                ('long_votecodes', models.BooleanField()),
                 ('state', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.State, choices=[(1, b'draft'), (2, b'pending'), (3, b'working'), (4, b'running'), (5, b'completed'), (6, b'paused'), (7, b'error'), (8, b'template')])),
-                ('type', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.Type, choices=[(1, b'elections'), (2, b'referendum')])),
-                ('vc_type', demos.common.utils.fields.IntEnumField(cls=demos.common.utils.enums.VcType, choices=[(1, b'short'), (2, b'long')])),
                 ('ballots', models.PositiveIntegerField()),
             ],
             options={
