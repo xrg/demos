@@ -32,10 +32,10 @@ class Election(models.Model):
     
     state = fields.IntEnumField(cls=enums.State)
 
-    type = fields.IntEnumField(cls=enums.Type)
-    vc_type = fields.IntEnumField(cls=enums.VcType)
+    type = fields.IntEnumField(cls=enums.Type, default=enums.Type.REFERENDUM)
+    vc_type = fields.IntEnumField(cls=enums.VcType, default=enums.VcType.SHORT)
 
-    ballots = models.PositiveIntegerField()
+    ballots = models.PositiveIntegerField(default=2)
     
     cert = models.FileField(upload_to=get_cert_file_path, storage=fs_root)
     export_file = models.FileField(upload_to=get_export_file_path,
@@ -143,7 +143,7 @@ class Question(models.Model):
     key = fields.ProtoField(cls=crypto.Key)
     index = models.PositiveSmallIntegerField()
 
-    options = models.PositiveSmallIntegerField()
+    options = models.PositiveSmallIntegerField(default=0)
     
     # Post-vote data
     

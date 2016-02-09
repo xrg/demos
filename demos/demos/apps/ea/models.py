@@ -21,10 +21,10 @@ class Election(models.Model):
     
     state = fields.IntEnumField(cls=enums.State)
 
-    type = fields.IntEnumField(cls=enums.Type)
-    vc_type = fields.IntEnumField(cls=enums.VcType)
+    type = fields.IntEnumField(cls=enums.Type, default=enums.Type.REFERENDUM)
+    vc_type = fields.IntEnumField(cls=enums.VcType, default=enums.VcType.SHORT)
 
-    ballots = models.PositiveIntegerField()
+    ballots = models.PositiveIntegerField(default=2)
     
     user = models.ForeignKey(User)
     
@@ -108,7 +108,7 @@ class Question(models.Model):
     text = models.CharField(max_length=config.QUESTION_MAXLEN)
     index = models.PositiveSmallIntegerField()
 
-    options = models.PositiveSmallIntegerField()
+    options = models.PositiveSmallIntegerField(default=0)
     
     # Other model methods and meta options
     
