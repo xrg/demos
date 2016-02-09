@@ -96,7 +96,6 @@ class Migration(migrations.Migration):
                 ('choices', models.PositiveSmallIntegerField()),
                 ('index', models.PositiveSmallIntegerField()),
                 ('columns', models.BooleanField(default=False)),
-                ('options', models.PositiveSmallIntegerField()),
             ],
             options={
                 'ordering': ['election', 'index'],

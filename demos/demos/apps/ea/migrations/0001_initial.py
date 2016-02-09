@@ -89,7 +89,6 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('text', models.CharField(max_length=128)),
                 ('index', models.PositiveSmallIntegerField()),
-                ('options', models.PositiveSmallIntegerField()),
             ],
             options={
                 'ordering': ['election', 'index'],

@@ -108,7 +108,6 @@ class Migration(migrations.Migration):
                 ('choices', models.PositiveSmallIntegerField()),
                 ('key', demos.common.utils.fields.ProtoField(cls=demos.common.utils.crypto.crypto_pb2.Key)),
                 ('index', models.PositiveSmallIntegerField()),
-                ('options', models.PositiveSmallIntegerField()),
                 ('combined_com', demos.common.utils.fields.ProtoField(default=None, cls=demos.common.utils.crypto.crypto_pb2.Com, null=True, blank=True)),
                 ('combined_decom', demos.common.utils.fields.ProtoField(default=None, cls=demos.common.utils.crypto.crypto_pb2.Decom, null=True, blank=True)),
             ],
