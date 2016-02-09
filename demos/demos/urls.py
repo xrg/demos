@@ -22,6 +22,7 @@ from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.i18n import i18n_patterns
 
+from demos.common.utils import api
 
 urlpatterns = []
 
@@ -37,7 +38,11 @@ for iapp in settings.DEMOS_APPS:
     urlconfig = import_module('demos.apps.%s.urls' % iapp)
     durl = '^' + ((iapp + '/') if len(settings.DEMOS_APPS) > 1 else '')
     urlpatterns += i18n_patterns(url(durl, include(urlconfig, namespace=iapp, app_name=iapp))) + \
-        [url(durl + 'api/', include(urlconfig.apipatterns, namespace=iapp+'-api', app_name=iapp))]
+        [url(durl + 'api/', include(urlconfig.apipatterns + [
+            url(r'^auth/', include([
+                url(r'^login/$', api.login, name='login'),
+                url(r'^logout/$', api.logout, name='logout'),
+            ])),], namespace=iapp+'-api', app_name=iapp))]
 
 #eof
 
