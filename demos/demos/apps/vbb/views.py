@@ -99,13 +99,15 @@ class VoteView(View):
             enums.State.RUNNING and now < election.start_datetime):
             raise VoteView.Error(VoteView.State.ELECTION_NOT_STARTED, *retval)
         
-        elif election.state==enums.State.RUNNING and now>=election.end_datetime:
+        elif (election.state==enums.State.RUNNING and now>=election.end_datetime) \
+                or election.state==enums.State.COMPLETED:
             raise VoteView.Error(VoteView.State.ELECTION_ENDED, *retval)
         
         elif election.state == enums.State.PAUSED:
             raise VoteView.Error(VoteView.State.ELECTION_PAUSED, *retval)
         
         elif election.state != enums.State.RUNNING:
+            logger.debug("Election %s state is %s", election_id, election.state)
             raise VoteView.Error(VoteView.State.SERVER_ERROR, *retval)
         
         # Vote token bits definitions
@@ -119,9 +121,11 @@ class VoteView(View):
         # Verify vote token's length
         
         if not isinstance(vote_token, string_types):
+            logger.info("Election %s invalid vote token %r", election_id, vote_token)
             raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
         
         if len(vote_token) != int(math.ceil(token_bits / 5)):
+            logger.info("Election %s invalid vote token %r", election_id, vote_token)
             raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
         
         # The vote token consists of two parts. The first part is the
@@ -133,6 +137,7 @@ class VoteView(View):
         try:
             p = base32cf.decode(vote_token) & ((1 << token_bits) - 1)
         except (AttributeError, TypeError, ValueError):
+            logger.warning("Election %s invalid vote token %r", election_id, vote_token, exc_info=True)
             raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
         
         p1_len = serial_bits + credential_bits + index_bits
@@ -164,11 +169,13 @@ class VoteView(View):
         try:
             ballot = Ballot.objects.get(election=election, serial=serial)
         except (ValidationError, Ballot.DoesNotExist):
+            logger.warning("Election %s invalid ballot serial=%r", election_id, serial)
             raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
         
         retval.append(ballot)
         
         if not hasher.verify(credential, ballot.credential_hash):
+            logger.warning("Election %s invalid credential", election_id)
             raise VoteView.Error(VoteView.State.INVALID_VOTE_TOKEN, *retval)
         
         # Get both part objects and verify the given security code. The first
@@ -180,6 +187,7 @@ class VoteView(View):
         try:
             part_qs = Part.objects.filter(ballot=ballot).order_by(order)
         except (ValidationError, Part.DoesNotExist):
+            logger.warning("Election %s invalid ballot %r", election_id, ballot)
             raise VoteView.Error(VoteView.State.SERVER_ERROR, *retval)
         
         retval.append(part_qs)
@@ -198,6 +206,7 @@ class VoteView(View):
         # Check if the ballot is already used
         
         if ballot.used:
+            logger.error("Election %s attempt to re-use ballot %r", election_id, ballot)
             raise VoteView.Error(VoteView.State.BALLOT_USED, *retval)
         
         retval.append(now)
@@ -231,7 +240,7 @@ class VoteView(View):
                 VoteView._parse_input(election_id, vote_token)
         
         except VoteView.Error as e:
-            
+            logger.debug("Election %s vote error %s", election_id, e.args[0])
             status = 422
             args_len = len(e.args)
             now = timezone.now()
