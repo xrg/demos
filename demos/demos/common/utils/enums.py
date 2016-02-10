@@ -38,6 +38,9 @@ class IntEnumC:
 
         return ret
 
+    @classmethod
+    def deconstruct(cls):
+        return 'demos.common.utils.enums.' + cls.__name__, ['*' '-* remove args!'], {}
 
 # Enum definitions -------------------------------------------------------------
 
