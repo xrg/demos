@@ -80,7 +80,7 @@ class AuditView(View):
             'election': election,
             'questions': questions,
             'participants': str(participants),
-            'VcType': { s.name: s.value for s in enums.VcType },
+            'VcType': enums.VcType.get_valueitems(),
         }
 
         csrf.get_token(request)
