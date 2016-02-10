@@ -35,7 +35,7 @@ from demos.apps.ea.models import Config, Election, Question, OptionV, Task
 from demos.apps.ea.tasks.setup import _remote_app_update
 
 from demos.common.utils import api, base32cf, crypto, enums
-from demos.common.utils.json import CustomJSONEncoder
+from demos.common.utils.json_encoder import CustomJSONEncoder
 from demos.common.utils.config import registry
 from django.utils.translation import ugettext as _
 

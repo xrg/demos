@@ -11,7 +11,7 @@ if set(settings.DEMOS_APPS).intersection(['ea', 'bds', 'abb']):
     
     from functools import partial
     from kombu.serialization import register
-    from demos.common.utils.json import CustomJSONEncoder
+    from demos.common.utils.json_encoder import CustomJSONEncoder
     
     register('custom-json', partial(json.dumps, cls=CustomJSONEncoder), \
         json.loads, 'application/x-custom-json', 'utf-8')

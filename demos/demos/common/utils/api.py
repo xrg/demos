@@ -20,7 +20,7 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.views.generic import View
 from django.contrib.auth.forms import AuthenticationForm
 
-from demos.common.utils.json import CustomJSONEncoder
+from demos.common.utils.json_encoder import CustomJSONEncoder
 from demos.common.utils.setup import insert_into_db
 
 logger = logging.getLogger(__name__)
