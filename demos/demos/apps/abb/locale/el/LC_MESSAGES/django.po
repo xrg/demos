@@ -1,20 +1,20 @@
-# SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# P. Christeas <xrg@linux.gr>, 2016.
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-11-18 05:36+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2016-02-10 18:58+0200\n"
+"PO-Revision-Date: 2016-02-10 19:01+0200\n"
+"Last-Translator: P. Christeas <xrg@linux.gr>\n"
+"Language-Team: Greek <>\n"
+"Language: el\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Lokalize 1.5\n"
 
 #: demos/apps/abb/apps.py:9 demos/apps/abb/templates/abb/base.html:7
 #: demos/apps/abb/templates/abb/base.html:12
@@ -23,8 +23,9 @@ msgstr "Επαλήθευση και Αποτελέσματα"
 
 #: demos/apps/abb/templates/abb/audit.html:20
 #: demos/apps/abb/templates/abb/results.html:20
-msgid "Election"
-msgstr ""
+#| msgid "Election"
+msgid "Election ID"
+msgstr "ID Ψηφοφορίας"
 
 #: demos/apps/abb/templates/abb/audit.html:21
 #: demos/apps/abb/templates/abb/results.html:21
@@ -36,8 +37,9 @@ msgid "Export Data"
 msgstr "Εξαγωγή Δεδομένων"
 
 #: demos/apps/abb/templates/abb/audit.html:32
-msgid "Export ballots"
-msgstr ""
+#| msgid "Export ballots"
+msgid "Export ballot data"
+msgstr "Εξαγωγή ψηφοδελτίων"
 
 #: demos/apps/abb/templates/abb/audit.html:33
 msgid "Export certificate"
@@ -64,12 +66,6 @@ msgstr "Όψη"
 msgid "Question"
 msgstr "Ερώτημα"
 
-#: demos/apps/abb/templates/abb/audit.html:71
-#: demos/apps/abb/templates/abb/audit.html:79
-#: demos/apps/abb/templates/abb/results.html:34
-msgid "Candidate"
-msgstr "Φάκελος επιλογής"
-
 #: demos/apps/abb/templates/abb/audit.html:76
 msgid "Vote-code"
 msgstr "Κωδικός"
@@ -85,6 +81,10 @@ msgstr "Επιλογή"
 #: demos/apps/abb/templates/abb/audit.html:78
 msgid "Pre-vote Audit"
 msgstr "Αρχικά στοιχεία επαλήθευσης"
+
+#: demos/apps/abb/templates/abb/audit.html:79
+msgid "Candidate"
+msgstr "Φάκελος επιλογής"
 
 #: demos/apps/abb/templates/abb/audit.html:80
 msgid "Post-vote Audit"
@@ -122,23 +122,11 @@ msgstr "Επαλήθευση"
 msgid "Results"
 msgstr "Αποτελέσματα"
 
-#: demos/apps/abb/templates/abb/results.html:27
-msgid "The results will be announced after the election has ended."
-msgstr "Τα αποτελέσματα θα ανακοινωθούν μετά την ολοκλήρωση της ψηφοφορίας."
-
 #: demos/apps/abb/templates/abb/home.html:14
 msgid "Welcome to the DEMOS e-voting system"
 msgstr "Καλώς ήρθατε στο σύστημα ηλεκτρονικής ψηφοφορίας DEMOS"
 
-#: demos/apps/abb/templates/abb/audit.html:20
-#: demos/apps/abb/templates/abb/results.html:20
-#, fuzzy
-#| msgid "Election"
-msgid "Election ID"
-msgstr "Ψηφοφορία"
+#: demos/apps/abb/templates/abb/results.html:27
+msgid "The results will be announced after the election has ended."
+msgstr "Τα αποτελέσματα θα ανακοινωθούν μετά την ολοκλήρωση της ψηφοφορίας."
 
-#: demos/apps/abb/templates/abb/audit.html:32
-#, fuzzy
-#| msgid "Export ballots"
-msgid "Export ballot data"
-msgstr "Εξαγωγή ψηφοδελτίων "

@@ -1,13 +1,13 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 #
-# P. Christeas <xrg@linux.gr>, 2015.
+# P. Christeas <xrg@linux.gr>, 2015, 2016.
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-11-18 05:36+0000\n"
-"PO-Revision-Date: 2015-11-18 07:40+0200\n"
+"POT-Creation-Date: 2016-02-10 18:58+0200\n"
+"PO-Revision-Date: 2016-02-10 19:00+0200\n"
 "Last-Translator: P. Christeas <xrg@linux.gr>\n"
 "Language-Team: Greek <>\n"
 "Language: el\n"
@@ -18,11 +18,13 @@ msgstr ""
 "X-Generator: Lokalize 1.5\n"
 
 #: demos/common/templates/common/alerts.html:5
-#: demos/common/templates/common/base.html:118
+#: demos/common/templates/common/alerts.html:12
+#: demos/common/templates/common/base.html:120
 msgid "Close"
 msgstr "Κλείσιμο"
 
 #: demos/common/templates/common/alerts.html:8
+#: demos/common/templates/common/alerts.html:15
 msgid "Error"
 msgstr "Σφάλμα"
 
@@ -30,54 +32,58 @@ msgstr "Σφάλμα"
 msgid "The election ID you entered is invalid."
 msgstr "Το αναγνωριστικό ψηφοφορίας που εισαγάγατε δεν είναι έγκυρο."
 
-#: demos/common/templates/common/base.html:72
+#: demos/common/templates/common/alerts.html:15
+msgid "Your account doesn't have access to this page."
+msgstr "Ο λογαριασμός σας δε έχει πρόσβαση σε αυτή τη σελίδα."
+
+#: demos/common/templates/common/base.html:74
 msgid "current"
 msgstr "τρέχων"
 
-#: demos/common/templates/common/base.html:92
+#: demos/common/templates/common/base.html:94
 msgid "Developed by the"
 msgstr "Δημιουργήθηκε από την"
 
-#: demos/common/templates/common/base.html:92
+#: demos/common/templates/common/base.html:94
 #, python-format
 msgid "%(demosvoting)s Research Team"
 msgstr "Ερευνητική Ομάδα του %(demosvoting)s"
 
-#: demos/common/templates/common/base.html:96
+#: demos/common/templates/common/base.html:98
 #, python-format
 msgid "Code licensed under %(license)s"
 msgstr "Κώδικας υπό την άδεια %(license)s"
 
-#: demos/common/templates/common/base.html:98
+#: demos/common/templates/common/base.html:100
 #, python-format
 msgid "Documentation licensed under %(license)s"
 msgstr "Τεκμηρίωση υπό την άδεια %(license)s"
 
-#: demos/common/templates/common/base.html:102
+#: demos/common/templates/common/base.html:104
 msgid "Learn More"
 msgstr "Μάθετε περισσότερα"
 
-#: demos/common/templates/common/base.html:107
+#: demos/common/templates/common/base.html:109
 msgid "Department of Informatics and Telecommunications"
 msgstr "Τμήμα Πληροφορικής και Τηλεπικοινωνιών"
 
-#: demos/common/templates/common/base.html:109
+#: demos/common/templates/common/base.html:111
 msgid "National and Kapodistrian University of Athens"
 msgstr "Εθνικό και Καποδιστριακό Πανεπιστήμιο Αθηνών"
 
-#: demos/common/templates/common/base.html:124
+#: demos/common/templates/common/base.html:126
 msgid "Please enter the Election ID"
 msgstr "Παρακαλούμε εισαγάγετε το αναγνωριστικό ψηφοφορίας"
 
-#: demos/common/templates/common/base.html:138
+#: demos/common/templates/common/base.html:140
 msgid "Redirecting..."
 msgstr "Γίνεται ανακατεύθυνση..."
 
-#: demos/common/templates/common/base.html:145
+#: demos/common/templates/common/base.html:147
 msgid "Cancel"
 msgstr "Ακύρωση"
 
-#: demos/common/templates/common/base.html:146
+#: demos/common/templates/common/base.html:148
 msgid "Submit"
 msgstr "Υποβολή"
 
@@ -115,13 +121,13 @@ msgstr ""
 
 #: demos/common/templates/registration/login.html:15
 msgid "Please login to see this page."
-msgstr ""
+msgstr "Παρακαλώ συνδεθείτε πρώτα για να δείτε αυτή τη σελίδα."
 
-#: demos/settings/base.py:134
+#: demos/settings.py:139 demos/settings_local.py:139
 msgid "Greek"
 msgstr "Ελληνικά"
 
-#: demos/settings/base.py:135
+#: demos/settings.py:140 demos/settings_local.py:140
 msgid "English"
 msgstr "Αγγλικά"
 
