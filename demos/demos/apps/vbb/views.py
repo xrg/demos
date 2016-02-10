@@ -204,26 +204,23 @@ class VoteView(View):
         
         return retval
     
-    def get(self, request, **kwargs):
-        
-        election_id = kwargs.get('election_id')
-        vote_token = kwargs.get('vote_token')
+    def get(self, request, election_id=None, vote_token=None, **kwargs):
         
         # Normalize election_id and vote_token
+        normalized = {}
+        if election_id:
+            norm = base32cf.normalize(election_id)
+            if norm != election_id:
+                normalized['election_id'] = norm
+
+            if vote_token:
+                norm = base32cf.normalize(vote_token)
+                if norm != vote_token:
+                    normalized['vote_token'] = norm
         
-        args = {
-            'election_id': election_id,
-            'vote_token': vote_token,
-        }
-        
-        normalized = {
-            'election_id': base32cf.normalize(election_id),
-            'vote_token': base32cf.normalize(vote_token),
-        }
-        
-        if args != normalized:
+        if normalized:
             return redirect('vbb:vote', **normalized)
-        
+
         # Parse input 'election_id' and 'vote_token'. The first matched object
         # (part1) of part_qs is always the part used by the client to vote, the
         # second matched object (part2) is the other part. '_parse_input' method
