@@ -5,6 +5,17 @@ from django.db import migrations, models
 import demos.common.utils.enums
 import demos.common.utils.fields
 
+def migr_move_data(apps, schema_editor):
+    # get the current (tmp) version of django model:
+    Election = apps.get_model("demos.apps.vbb", "Election")
+
+    #only update non-default values
+    Election.objects.filter(parties_and_candidates=True) \
+                .update(type=demos.common.utils.enums.Type.ELECTIONS)
+
+    Election.objects.filter(long_votecodes=True) \
+                .update(type=demos.common.utils.enums.VcType.LONG)
+
 
 class Migration(migrations.Migration):
 
@@ -13,10 +24,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='election',
-            name='long_votecodes',
-        ),
         migrations.AddField(
             model_name='election',
             name='type',
@@ -31,5 +38,14 @@ class Migration(migrations.Migration):
             model_name='question',
             name='options',
             field=models.PositiveSmallIntegerField(default=0),
+        ),
+        migrations.RunPython(migr_move_data),
+        migrations.RemoveField(
+            model_name='election',
+            name='long_votecodes',
+        ),
+        migrations.RemoveField(
+            model_name='election',
+            name='parties_and_candidates',
         ),
     ]

@@ -11,8 +11,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='election',
-            name='parties_and_candidates',
-        ),
     ]

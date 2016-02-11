@@ -21,10 +21,6 @@ class Migration(migrations.Migration):
             model_name='trustee',
             name='election',
         ),
-        migrations.RemoveField(
-            model_name='election',
-            name='parties_and_candidates',
-        ),
         migrations.AddField(
             model_name='ballot',
             name='user',
